@@ -12,7 +12,7 @@ from flask import request
 session_timestamps = []
 session_mph = []
 session_heartrate = []
-latest_data = {"t": "N/A",
+latest_data = {"t": 0,
                "dyno_rpm": 0,
                "bike_rpm": 0,
                "bike_mph": 0,
@@ -57,11 +57,11 @@ def require_apikey(view_function):
     @wraps(view_function)
     # the new, post-decoration function. Note *args and **kwargs here.
     def decorated_function(*args, **kwargs):
-        if request.json['apikey'] and request.json['apikey'] == str(os.environ.get("apikey")):
+        if request.json['apikey'] and "apikey" in os.environ and request.json['apikey'] == str(os.environ.get("apikey")):
             #print("matched api key")
             return view_function(*args, **kwargs)
         else:
-            print("invalid api key")
+            print("invalid api key match")
             return {"success": False}, 401
     return decorated_function
 
@@ -225,4 +225,7 @@ def update_graph_live(n):
 
 
 if __name__ == '__main__':
-    app.run_server(debug=True, port=8050)
+    if "mode" in os.environ and str(os.environ.get("mode")) == "dev":
+        app.run_server(debug=True, port=8050)
+    else:
+        app.run_server(host='0.0.0.0')
