@@ -3,6 +3,7 @@ import redis
 import dash
 from functools import wraps
 import datetime
+import timeago
 import json
 import dash_html_components as html
 import dash_core_components as dcc
@@ -17,7 +18,6 @@ server = app.server  # This is the Flask Parent Server that we can use to receiv
 
 # Connect to Redis for persistent storage of session data
 r = redis.from_url(os.environ.get("REDIS_URL"), decode_responses=True)
-r.flushdb()
 
 app.layout = html.Div(
     children=[
@@ -63,10 +63,19 @@ def require_apikey(view_function):
 
 
 # Receive incoming data as POST JSON objects from the Particle Cloud
-@server.route('/append', methods=['POST'])
+@server.route('/update', methods=['POST'])
 @require_apikey
-def append_data():
+def rest_update():
     latest_data = json.loads(request.json['data'])
+
+    # The "event" key will be "start_session" for a new session, or "new_data" for new data
+    if latest_data['event'] == "start_session":
+        # When we're ready to start a new session (photon switched on), we clear the existing redis data
+        r.flushdb()
+        # Note when this session started
+        r.set("session_start", latest_data['t'])
+        print("STARTED A NEW SESSION: {}".format(latest_data))
+        return {"reply": "started session"}
 
     # If a value comes in out of order, discard it.
     if r.exists('timestamp') and int(r.lindex('timestamp', 0)) > int(latest_data['t']):
@@ -90,14 +99,14 @@ def append_data():
 @app.callback(Output('live-update-text', 'children'),
               [Input('interval-component', 'n_intervals')])
 def update_metrics(n):
-    if r.exists('timestamp'):
-        style = {'padding': '5px', 'fontSize': '16px'}
+    if r.exists('session_start') and r.exists('timestamp'):
         return [
-            html.P('Last Update: {}'.format(datetime.datetime.fromtimestamp(int(r.lindex('timestamp', 0))).strftime('%c')), style=style),
-            html.P('Bike Speed: {0:0.2f} MPH'.format(float(r.lindex('bike_mph', 0))), style=style),
-            html.P('Heart Rate: {0:0.2f} BPM'.format(float(r.lindex('heart_bpm', 0))), style=style)
+            html.H3('Session started: {}'.format(timeago.format(datetime.datetime.fromtimestamp(int(r.get('session_start')))), datetime.datetime.now())),
+            html.P('Last Update: {}'.format(datetime.datetime.fromtimestamp(int(r.lindex('timestamp', 0))).strftime('%c'))),
+            html.P('Bike Speed: {0:0.2f} MPH'.format(float(r.lindex('bike_mph', 0)))),
+            html.P('Heart Rate: {0:0.2f} BPM'.format(float(r.lindex('heart_bpm', 0))))
         ]
-    style = {'padding': '5px', 'fontSize': '16px', 'fontStyle': 'italic'}
+    style = {'fontStyle': 'italic'}
     return [
         html.P('Waiting to receive data from bike...', style=style)
     ]
