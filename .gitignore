@@ -1,2 +1,8 @@
+# Exclude Python Virtual Env
 venv/
+
+# Exclude PyCharm project settings
 .idea/
+
+# Exclude Compiled Photon firmware binaries
+*.bin

@@ -1,3 +1,8 @@
+# blum.bike Web App
+# Copyright 2020 Jeremy Blum, Blum Idea Labs, LLC.
+# www.jeremyblum.com
+# This code is licensed under MIT license (see LICENSE.md for details)
+
 import os
 import redis
 import dash
