@@ -8,7 +8,7 @@ import redis
 import dash
 from functools import wraps
 import datetime
-import timeago
+from natural import date
 import json
 import dash_html_components as html
 import dash_core_components as dcc
@@ -126,12 +126,30 @@ def rest_update():
 @app.callback(Output('live-update-text', 'children'),
               [Input('interval-component', 'n_intervals')])
 def update_metrics(n):
-    if r.exists('session_start') and r.exists('timestamp'):
+
+    if r.exists('session_end') and r.exists('timestamp'):
+        start_datetime = datetime.datetime.fromtimestamp(int(r.get('session_start')))
+        end_datetime = datetime.datetime.fromtimestamp(int(r.get('session_end')))
+        speed_readings = [float(i) for i in r.lrange('bike_mph', 0, -1)]
+        heart_readings = [float(i) for i in r.lrange('heart_bpm', 0, -1)]
         return [
-            html.H3('Session started: {}'.format(timeago.format(datetime.datetime.fromtimestamp(int(r.get('session_start')))), datetime.datetime.now())),
+            html.H3('Last session ended: {}'.format(date.duration(end_datetime))),
+            html.P('Session Duration: {}'.format(date.delta(start_datetime, end_datetime)[0])),
+            html.Br(),
+            html.P('Session Average Bike Speed: {0:0.2f} MPH'.format(sum(speed_readings)/len(speed_readings))),
+            html.P('Session Max Bike Speed: {0:0.2f} MPH'.format(max(speed_readings))),
+            html.Br(),
+            html.P('Session Average Heart Rate: {0:0.2f} BPM'.format(sum(heart_readings)/len(heart_readings))),
+            html.P('Session Max Heart Rate: {0:0.2f} BPM'.format(max(heart_readings)))
+        ]
+    if r.exists('session_start') and r.exists('timestamp'):
+        start_datetime = datetime.datetime.fromtimestamp(int(r.get('session_start')))
+        return [
+            html.H3('Current session started: {}'.format(date.duration(start_datetime))),
             html.P('Last Update: {}'.format(datetime.datetime.fromtimestamp(int(r.lindex('timestamp', 0))).strftime('%c'))),
-            html.P('Bike Speed: {0:0.2f} MPH'.format(float(r.lindex('bike_mph', 0)))),
-            html.P('Heart Rate: {0:0.2f} BPM'.format(float(r.lindex('heart_bpm', 0))))
+            html.Br(),
+            html.P('Current Bike Speed: {0:0.2f} MPH'.format(float(r.lindex('bike_mph', 0)))),
+            html.P('Current Heart Rate: {0:0.2f} BPM'.format(float(r.lindex('heart_bpm', 0))))
         ]
     style = {'fontStyle': 'italic'}
     return [
