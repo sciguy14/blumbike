@@ -73,32 +73,54 @@ def require_apikey(view_function):
 def rest_update():
     latest_data = json.loads(request.json['data'])
 
-    # The "event" key will be "start_session" for a new session, or "new_data" for new data
+    # The "event" key will be:
+    # "powered_on" when the Photon is turned on
+    # "start_session" when the Photon has detected that a new session has started
+    # "end_session" when the Photon has detected that a session has ended
+    # "new_data" for new bike stats
+    if latest_data['event'] == "powered_on":
+        # This triggers when the photon is powered on
+        # Note when this session started
+        r.set("powered_on", latest_data['t'])
+        print("BIKE POWERED ON: {}".format(latest_data))
+        return {"reply": "power on received"}
+
     if latest_data['event'] == "start_session":
-        # When we're ready to start a new session (photon switched on), we clear the existing redis data
+        # When user has initiated a new session (sequential non-zero dyno RPMs), we clear the existing redis data
         r.flushdb()
         # Note when this session started
         r.set("session_start", latest_data['t'])
         print("STARTED A NEW SESSION: {}".format(latest_data))
         return {"reply": "started session"}
 
-    # If a value comes in out of order, discard it.
-    if r.exists('timestamp') and int(r.lindex('timestamp', 0)) > int(latest_data['t']):
-        print("IGNORED (STALE): {}".format(latest_data))
-        return {"reply": "ignored stale data"}
+    if latest_data['event'] == "end_session":
+        # When user has finished a new session (sequential non-zero dyno RPMs), we can note that in the UI
+        r.set("session_end", latest_data['t'])
+        print("ENDED THE SESSION: {}".format(latest_data))
+        return {"reply": "ended session"}
 
-    # Push the data into a running list in redis
-    r.lpush('timestamp', latest_data['t'])
-    r.lpush('bike_mph', latest_data['bike_mph'])
-    r.lpush('heart_bpm', latest_data['heart_bpm'])
+    elif latest_data['event'] == "new_data":
+        # If a value comes in out of order, discard it.
+        if r.exists('timestamp') and int(r.lindex('timestamp', 0)) > int(latest_data['t']):
+            print("IGNORED (STALE): {}".format(latest_data))
+            return {"reply": "ignored stale data"}, 409
 
-    # Keep the list trimmed
-    r.ltrim('timestamp', 0, 300)
-    r.ltrim('bike_mph', 0, 300)
-    r.ltrim('heart_bpm', 0, 300)
+        # Push the data into a running list in redis
+        r.lpush('timestamp', latest_data['t'])
+        r.lpush('bike_mph', latest_data['bike_mph'])
+        r.lpush('heart_bpm', latest_data['heart_bpm'])
 
-    print("APPENDED: {}".format(latest_data))
-    return {"reply": "data appended"}
+        # Keep the list trimmed
+        r.ltrim('timestamp', 0, 300)
+        r.ltrim('bike_mph', 0, 300)
+        r.ltrim('heart_bpm', 0, 300)
+
+        print("APPENDED: {}".format(latest_data))
+        return {"reply": "data appended"}
+
+    else:
+        print("APPENDED: {}".format(latest_data))
+        return {"reply": "event '{}' not understood".format(latest_data['event'])}, 501
 
 
 @app.callback(Output('live-update-text', 'children'),

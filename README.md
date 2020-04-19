@@ -26,12 +26,12 @@ blum.bike has two main components: some cloud-connected simple electronics mount
     * A Polar wireless heart rate receiver ([Datasheet](blumbike_hardware/datasheets/Polar_Heart_Rate_Receiver.pdf)).
     * A Polar T34 Chest strap heart rate sensor ([Amazon Link](https://amzn.to/2RPv1s9)).
     * A L293D H-bridge ([Datasheet](blumbike_hardware/datasheets/L293D_Dual_H-Bridge.pdf)) for driving a stepper motor that adjusts dyno resistance.
-    * A L7805 Linear 5V regulator([Datasheet](blumbike_hardware/datasheets/L7805_Linear_Regulator.pdf)) (plus bulk decoupling caps) for powering the logic elements from a 12V AC/DC wall adapter.
+    * A L7805 Linear 5V regulator ([Datasheet](blumbike_hardware/datasheets/L7805_Linear_Regulator.pdf)) (plus bulk decoupling caps) for powering the logic elements from a 12V AC/DC wall adapter.
 * A 12V, 1.5A AC/DC Wall adapter
 * A NEMA-17 Stepper motor and 3D-printed adapter for controlling dyno resistance (not yet implemented)
 
 ### Photon Firmware and Cloud
-The Particle Photon runs some simple firmware that determines session start/stop time, heart rate, bike speed, etc. I publishes all the relevant data to the particle cloud once per second. The particle cloud is configred to fire a webhook to the python web app each time an update is received. A secret API key is inserted into the webhook contents, which is validated by the receiving web app.
+The Particle Photon runs some simple firmware that determines session start/stop time, heart rate, bike speed, etc. It publishes all the relevant data to the particle cloud once per second. The particle cloud is configred to fire a webhook to the python web app each time an update is received. A secret API key is inserted into the webhook contents, which is validated by the receiving web app.
 
 ### Python Web App Implementation
 The web app is built as a python virtual env. It uses [Plotly Dash](https://dash.plotly.com/introduction) as the main mechanism for the UI and the graphs. It is deployed onto a [Heroku Free-Tier Dyno](https://www.heroku.com/pricing) and it leverages a [Heroku redis](https://elements.heroku.com/addons/heroku-redis) resource to maintain data for the duration of a session. To secure communication between the Particle cloud and the Heroku server, a matching API key is generated and stored in a Heroku environment variable for validating that the incoming webhook data from the Particle cloud is authentic.
@@ -43,26 +43,26 @@ This section is still a work in progress as I am still developing this project.
 3. Associate the Particle Photon to your Wi-Fi network and to your Particle Cloud account.
 4. Use the Particle Dev IDE to flash the firmware onto the Photon via the cloud, or copy the firmware into their cloud IDE and flash it from there. Ensure that you see events streaming into the Particle Cloud interface for your device.
 5. On the Particle Cloud Integration page, setup a new Webhook. Choose to create a custom template and populate it as follows (replacing the <> items accordingly):
-```JSON
-{
-    "event": "bike_data",
-    "deviceID": "<YOUR_DEVICE_ID>",
-    "url": "https://<YOUR_HEROKU_URL>/update",
-    "requestType": "POST",
-    "noDefaults": true,
-    "rejectUnauthorized": true,
-    "json": {
-        "event": "{{{PARTICLE_EVENT_NAME}}}",
-        "data": "{{{PARTICLE_EVENT_VALUE}}}",
-        "apikey": "<YOUR_GENERATED_API_KEY>"
+    ```JSON
+    {
+        "event": "bike_data",
+        "deviceID": "<YOUR_DEVICE_ID>",
+        "url": "https://<YOUR_HEROKU_URL>/update",
+        "requestType": "POST",
+        "noDefaults": true,
+        "rejectUnauthorized": true,
+        "json": {
+            "event": "{{{PARTICLE_EVENT_NAME}}}",
+            "data": "{{{PARTICLE_EVENT_VALUE}}}",
+            "apikey": "<YOUR_GENERATED_API_KEY>"
+        }
     }
-}
-```
-The API key can be whatever you want. You will just need to use the same key when you setup the heroku environment variables.
+    ```  
+    The API key can be whatever you want. You will just need to use the same key when you setup the heroku environment variables.
 6. Create a Heroku Account, and spin up a free-tier dyno.
 7. Choose to "Deploy from GitHub" and connect it to your GitHub account. Point it at the repo that you forked to your account.
-8. On the "Settings" page for the dyno, add the following "Config Vars":
-    `apikey` = `<YOUR_GENERATED_API_KEY>` - this is the same API key you configured in the JSON webhook.
+8. On the "Settings" page for the dyno, add the following "Config Vars":  
+    `apikey` = `<YOUR_GENERATED_API_KEY>` - this is the same API key you configured in the JSON webhook.  
     `PROJECT_PATH` = `blumbike_web_app` - this will make the Heroku automatic GitHub deployment look in the right subfolder of this repo for the application ([more info about this](https://stackoverflow.com/a/53221996)).
 9. Add a buildpack that will ensure the right subdirectory is used for automatic deployment. Add https://github.com/timanovsky/subdir-heroku-buildpack.git to the buildpack list and drag it to the top of the list (above python).
 10. On the "Resources" page for your Dyno add a Heroku Redis instance. This should automatically add a "Config Var" with your `REDIS_URL`. This app will use this redis store to hold your data.
@@ -70,9 +70,9 @@ The API key can be whatever you want. You will just need to use the same key whe
 
 ## Doing Local Development
 It's impractical to re-deploy to Heroku for every software change that you want to test. I recommend the following local development environment:  
-I use [PyCharm](https://www.jetbrains.com/pycharm/) for development of the Python web app, and use I use [Particle Dev](https://docs.particle.io/tutorials/developer-tools/dev/) to write and deploy firmware to the Particle Photon.
+I like using [PyCharm](https://www.jetbrains.com/pycharm/) for development of the Python web app, and I used [Particle Dev](https://docs.particle.io/tutorials/developer-tools/dev/) to write and deploy firmware to the Particle Photon.
   
-[Ngrok](https://ngrok.com/) can be used to pipe the Photon webhooks to the localhost development server that you'll be running on your local machine. Create an account, and install it on your development machine. Once installed, launch the service with `ngrok http 8050`. This will give you a forwarding URL of the format `https://<UNIQUE ID>.ngrok.io`. You can also see this URL in your ngrok dashboard at [dashboard.ngrok.com](https://dashboard.ngrok.com/status/tunnels). Temporarily edit your Particle webhook event to use this URL instead of the heroku URL. So for example, you would cheange `https://my-app.heroku-app.com/update` to `https://abcde12345.ngrok.io/update`. You should be able to see the webhook requests come into this termainal window as soon as you point the Particle webhook at this address. You will see "502 Bad Gateway Errors" until you actually launch your local development server from PyCharm.
+[Ngrok](https://ngrok.com/) can be used to pipe the Photon webhooks to the localhost development server that you'll be running on your local machine. Create an account, and install it on your development machine. Once installed, launch the service with `ngrok http 8050`. This will give you a forwarding URL of the format `https://<UNIQUE ID>.ngrok.io`. You can also see this URL in your ngrok dashboard at [dashboard.ngrok.com](https://dashboard.ngrok.com/status/tunnels). Temporarily edit your Particle webhook event to use this URL instead of the heroku URL. So for example, you would cheange `https://my-app.herokuapp.com/update` to `https://abcde12345.ngrok.io/update`. You should be able to see the webhook requests come into this termainal window as soon as you point the Particle webhook at this address. You will see "502 Bad Gateway Errors" until you actually launch your local development server from PyCharm.
   
 Create a new PyCharm project in the `blumbike_web_app` folder. Set up the Virtual Env using the requirements.txt file (PyCharm should prompt you to install the right things). Create a Run configuration pointed at appy.py and using the Virtual Env interpreter. Add the following environment variables ([instructions](https://stackoverflow.com/questions/42708389/how-to-set-environment-variables-in-pycharm/42708480#42708480)):
 * `mode` = `dev` - This will configure the server to run on local port 8050, which is what you used to setup ngrok.
