@@ -10,6 +10,7 @@ from functools import wraps
 import datetime
 from natural import date
 import json
+import dash_bootstrap_components as dbc
 import dash_html_components as html
 import dash_core_components as dcc
 import plotly
@@ -17,41 +18,33 @@ from dash.dependencies import Input, Output
 from flask import request
 
 # Initialize the app
-app = dash.Dash(__name__)
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.SOLAR])
 app.config.suppress_callback_exceptions = True
 server = app.server  # This is the Flask Parent Server that we can use to receive webhooks
 
 # Connect to Redis for persistent storage of session data
 r = redis.from_url(os.environ.get("REDIS_URL"), decode_responses=True)
 
-app.layout = html.Div(
-    children=[
-        html.Div(className='row',
-                 children=
-                 [
-                     html.Div(className='four columns div-user-controls',
-                              children=
-                              [
-                                  html.H1('blum.bike'),
-                                  html.Div(id='live-update-text'),
-                              ]
-                              ),
-                     html.Div(className='eight columns div-for-charts bg-grey',
-                              children=
-                              [
-                                  dcc.Graph(id='live-update-graph', config={'displayModeBar': False}),
-                                  dcc.Interval(
-                                      id='interval-component',
-                                      interval=1000,  # in milliseconds
-                                      n_intervals=0
-                                  )
-                              ]
-                              )
-                 ]
-                 )
-    ]
-)
+sidebar = dbc.Col(html.Div(
+    [
+        html.H3("blum.bike", className="card-header"),
+        html.Div(id='live-update-text', className="card-body")
+    ], className='card mb-3'
+), className='col-md-12 col-lg-4 sidebar')
 
+content = dbc.Col(html.Div(
+    [
+        dcc.Graph(id='live-update-graph', config={'displayModeBar': False}),
+        dcc.Interval(
+            id='interval-component',
+            interval=1000,  # in milliseconds
+            n_intervals=0
+        )
+    ]
+
+), className='col-md-12 col-lg-8 col-lg-offset-4 main')
+
+app.layout = dbc.Container(dbc.Row([sidebar, content]), fluid=True)
 
 # A decorator function to require an api key for pushing data to this application
 # https://coderwall.com/p/4qickw/require-an-api-key-for-a-route-in-flask-using-only-a-decorator
@@ -133,27 +126,27 @@ def update_metrics(n):
         speed_readings = [float(i) for i in r.lrange('bike_mph', 0, -1)]
         heart_readings = [float(i) for i in r.lrange('heart_bpm', 0, -1)]
         return [
-            html.H3('Last session ended: {}'.format(date.duration(end_datetime))),
-            html.P('Session Duration: {}'.format(date.delta(start_datetime, end_datetime)[0])),
+            html.H5('Last session ended: {}'.format(date.duration(end_datetime)), className='card-title'),
+            html.P('Session Duration: {}'.format(date.delta(start_datetime, end_datetime)[0]), className='card-text'),
             html.Br(),
-            html.P('Session Average Bike Speed: {0:0.2f} MPH'.format(sum(speed_readings)/len(speed_readings))),
-            html.P('Session Max Bike Speed: {0:0.2f} MPH'.format(max(speed_readings))),
+            html.P('Session Average Bike Speed: {0:0.2f} MPH'.format(sum(speed_readings)/len(speed_readings)), className='card-text'),
+            html.P('Session Max Bike Speed: {0:0.2f} MPH'.format(max(speed_readings)), className='card-text'),
             html.Br(),
-            html.P('Session Average Heart Rate: {0:0.2f} BPM'.format(sum(heart_readings)/len(heart_readings))),
-            html.P('Session Max Heart Rate: {0:0.2f} BPM'.format(max(heart_readings)))
+            html.P('Session Average Heart Rate: {0:0.2f} BPM'.format(sum(heart_readings)/len(heart_readings)), className='card-text'),
+            html.P('Session Max Heart Rate: {0:0.2f} BPM'.format(max(heart_readings)), className='card-text')
         ]
     if r.exists('session_start') and r.exists('timestamp'):
         start_datetime = datetime.datetime.fromtimestamp(int(r.get('session_start')))
         return [
-            html.H3('Current session started: {}'.format(date.duration(start_datetime))),
-            html.P('Last Update: {}'.format(datetime.datetime.fromtimestamp(int(r.lindex('timestamp', 0))).strftime('%c'))),
+            html.H5('Current session started: {}'.format(date.duration(start_datetime)), className='card-title'),
+            html.P('Last Update: {}'.format(datetime.datetime.fromtimestamp(int(r.lindex('timestamp', 0))).strftime('%c')), className='card-text'),
             html.Br(),
-            html.P('Current Bike Speed: {0:0.2f} MPH'.format(float(r.lindex('bike_mph', 0)))),
-            html.P('Current Heart Rate: {0:0.2f} BPM'.format(float(r.lindex('heart_bpm', 0))))
+            html.P('Current Bike Speed: {0:0.2f} MPH'.format(float(r.lindex('bike_mph', 0))), className='card-text'),
+            html.P('Current Heart Rate: {0:0.2f} BPM'.format(float(r.lindex('heart_bpm', 0))), className='card-text')
         ]
     style = {'fontStyle': 'italic'}
     return [
-        html.P('Waiting to receive data from bike...', style=style)
+        html.P('Waiting to receive data from bike...', className='card-text', style=style)
     ]
 
 
@@ -168,43 +161,43 @@ def update_graph_live(n):
             fixedrange=True,
             title_font=dict(
                 size=14,
-                color='grey',
+                color='#839496',
             ),
             title_text="Time",
             zeroline=False,
             showline=False,
             showgrid=True,
             showticklabels=True,
-            gridcolor='grey',
+            gridcolor='#839496',
             ticks='outside',
             tickfont=dict(
                 size=12,
-                color='grey',
+                color='#839496',
             ),
         ),
         xaxis2=dict(
             fixedrange=True,
             title_font=dict(
                 size=14,
-                color='grey',
+                color='#839496',
             ),
             title_text="Time",
             zeroline=False,
             showline=False,
             showgrid=True,
             showticklabels=True,
-            gridcolor='grey',
+            gridcolor='#839496',
             ticks='outside',
             tickfont=dict(
                 size=12,
-                color='grey',
+                color='#839496',
             ),
         ),
         yaxis=dict(
             fixedrange=True,
             title_font=dict(
                 size=14,
-                color='grey',
+                color='#839496',
             ),
             title_text="Speed (mph)",
             zeroline=False,
@@ -212,18 +205,18 @@ def update_graph_live(n):
             showline=False,
             showgrid=True,
             showticklabels=True,
-            gridcolor='grey',
+            gridcolor='#839496',
             ticks='outside',
             tickfont=dict(
                 size=12,
-                color='grey',
+                color='#839496',
             ),
         ),
         yaxis2=dict(
             fixedrange=True,
             title_font=dict(
                 size=14,
-                color='grey',
+                color='#839496',
             ),
             title_text="Heart Rate (bpm)",
             zeroline=False,
@@ -231,11 +224,11 @@ def update_graph_live(n):
             showline=False,
             showgrid=True,
             showticklabels=True,
-            gridcolor='grey',
+            gridcolor='#839496',
             ticks='outside',
             tickfont=dict(
                 size=12,
-                color='grey',
+                color='#839496',
             ),
         ),
         height=800,
@@ -253,7 +246,7 @@ def update_graph_live(n):
     )
 
     for i in fig['layout']['annotations']:
-        i['font'] = dict(size=18, color='grey')
+        i['font'] = dict(size=18, color='#839496')
 
     if r.exists('timestamp'):
         data = {
@@ -268,8 +261,8 @@ def update_graph_live(n):
             'name': 'Bike Speed',
             'mode': 'lines+markers',
             'type': 'scatter',
-            'line': dict(color='royalblue', width=2),
-            'marker': dict(color='royalblue', size=6),
+            'line': dict(color='#268BD2', width=2),
+            'marker': dict(color='#268BD2', size=6),
         }, 1, 1)
         fig.append_trace({
             'x': data['timestamp'],
@@ -278,8 +271,8 @@ def update_graph_live(n):
             'name': 'Heart Rate',
             'mode': 'lines+markers',
             'type': 'scatter',
-            'line': dict(color='firebrick', width=2),
-            'marker': dict(color='firebrick', size=6),
+            'line': dict(color='#fd7e14', width=2),
+            'marker': dict(color='#fd7e14', size=6),
         }, 2, 1)
 
     return fig
