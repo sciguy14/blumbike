@@ -6,6 +6,7 @@
 import os
 import redis
 import dash
+import time
 from functools import wraps
 import datetime
 from natural import date
@@ -85,7 +86,7 @@ def rest_update():
         return {"reply": "power on received"}
 
     if latest_data['event'] == "start_session":
-        # When user has initiated a new session (sequential non-zero dyno RPMs), we clear the existing redis data
+        # When user has initiated a new session (sequential non-zero dyno RPMs), we clear all existing redis data
         r.flushdb()
         # Note when this session started
         r.set("session_start", latest_data['t'])
@@ -95,24 +96,25 @@ def rest_update():
     if latest_data['event'] == "end_session":
         # When user has finished a new session (sequential non-zero dyno RPMs), we can note that in the UI
         r.set("session_end", latest_data['t'])
+        time.sleep(.1)  # Briefly sleep after the end of a session to ensure the session end is set in redis
         print("ENDED THE SESSION: {}".format(latest_data))
         return {"reply": "ended session"}
 
     elif latest_data['event'] == "new_data":
         # If a value comes in out of order, discard it.
-        if r.exists('timestamp') and int(r.lindex('timestamp', 0)) > int(latest_data['t']):
+        if (r.exists('timestamp') and int(r.lindex('timestamp', 0)) > int(latest_data['t'])) or r.exists('session_end'):
             print("IGNORED (STALE): {}".format(latest_data))
-            return {"reply": "ignored stale data"}, 409
+            return {"reply": "ignored stale data"}
 
         # Push the data into a running list in redis
         r.lpush('timestamp', latest_data['t'])
         r.lpush('bike_mph', latest_data['bike_mph'])
         r.lpush('heart_bpm', latest_data['heart_bpm'])
 
-        # Keep the list trimmed
-        r.ltrim('timestamp', 0, 300)
-        r.ltrim('bike_mph', 0, 300)
-        r.ltrim('heart_bpm', 0, 300)
+        # Keep the list trimmed (disabled. Shouldn't be necessary to trim the list since we end sessions when the bike stops).
+        # r.ltrim('timestamp', 0, 300)
+        # r.ltrim('bike_mph', 0, 300)
+        # r.ltrim('heart_bpm', 0, 300)
 
         print("APPENDED: {}".format(latest_data))
         return {"reply": "data appended"}
@@ -131,17 +133,18 @@ def update_metrics(n):
         end_datetime = datetime.datetime.fromtimestamp(int(r.get('session_end')))
         speed_readings = [float(i) for i in r.lrange('bike_mph', 0, -1)]
         heart_readings = [float(i) for i in r.lrange('heart_bpm', 0, -1)]
-        return [
-            html.H5('Last session ended: {}'.format(date.duration(end_datetime)), className='card-title'),
-            html.P('Session Duration: {}'.format(date.delta(start_datetime, end_datetime)[0]), className='card-text'),
-            html.Br(),
-            html.P('Session Average Bike Speed: {0:0.2f} MPH'.format(sum(speed_readings)/len(speed_readings)), className='card-text'),
-            html.P('Session Max Bike Speed: {0:0.2f} MPH'.format(max(speed_readings)), className='card-text'),
-            html.Br(),
-            html.P('Session Average Heart Rate: {0:0.2f} BPM'.format(sum(heart_readings)/len(heart_readings)), className='card-text'),
-            html.P('Session Max Heart Rate: {0:0.2f} BPM'.format(max(heart_readings)), className='card-text')
-        ]
-    if r.exists('session_start') and r.exists('timestamp'):
+        if len(speed_readings) > 0 and len(heart_readings) > 0:
+            return [
+                html.H5('Last session ended: {}'.format(date.duration(end_datetime)), className='card-title'),
+                html.P('Session Duration: {}'.format(date.delta(start_datetime, end_datetime)[0]), className='card-text'),
+                html.Br(),
+                html.P('Session Average Bike Speed: {0:0.2f} MPH'.format(sum(speed_readings)/len(speed_readings)), className='card-text'),
+                html.P('Session Max Bike Speed: {0:0.2f} MPH'.format(max(speed_readings)), className='card-text'),
+                html.Br(),
+                html.P('Session Average Heart Rate: {0:0.2f} BPM'.format(sum(heart_readings)/len(heart_readings)), className='card-text'),
+                html.P('Session Max Heart Rate: {0:0.2f} BPM'.format(max(heart_readings)), className='card-text')
+            ]
+    elif r.exists('session_start') and r.exists('timestamp'):
         start_datetime = datetime.datetime.fromtimestamp(int(r.get('session_start')))
         return [
             html.H5('Current session started: {}'.format(date.duration(start_datetime)), className='card-title'),
