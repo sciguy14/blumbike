@@ -119,24 +119,32 @@ void loop() {
     timestamp_seconds = Time.now();
 
     // If we are not currently in a session, look for movement to see if we should start one
-    if (!in_session && dyno_rpm >= RPM_MOVEMENT_THRESHOLD) {
-        sequential_non_zero_readings = sequential_non_zero_readings + 1;
-        if (sequential_non_zero_readings >= SESSION_STARTED_SEQUENTIAL_NON_ZERO_READINGS) {
-            in_session = true;
-            sequential_non_zero_readings = 0; // Reset variable so its ready for next time
+    if (!in_session) {
+        if (dyno_rpm >= RPM_MOVEMENT_THRESHOLD) {
+            sequential_non_zero_readings = sequential_non_zero_readings + 1;
+            if (sequential_non_zero_readings >= SESSION_STARTED_SEQUENTIAL_NON_ZERO_READINGS) {
+                in_session = true;
+                sequential_non_zero_readings = 0; // Reset variable so its ready for next time
 
-            String msg = "{\"t\": " + String(timestamp_seconds) + ", \"event\": \"start_session\"}";
-            Particle.publish("bike_data", msg, PRIVATE | WITH_ACK);
+                String msg = "{\"t\": " + String(timestamp_seconds) + ", \"event\": \"start_session\"}";
+                Particle.publish("bike_data", msg, PRIVATE | WITH_ACK);
+            }
+        } else {
+            sequential_non_zero_readings = 0; // Reset variable if readings are not sequential
         }
     // If we are currently in a session, check to see if movement has stopped, so we can end the session
-    } else if (in_session && dyno_rpm < RPM_MOVEMENT_THRESHOLD) {
-        sequential_zero_readings = sequential_zero_readings + 1;
-        if (sequential_zero_readings >= SESSION_ENDED_SEQUENTIAL_ZERO_READINGS) {
-            in_session = false;
-            sequential_zero_readings = 0; // Reset variable so its ready for next time
+    } else if (in_session) {
+        if (dyno_rpm < RPM_MOVEMENT_THRESHOLD) {
+            sequential_zero_readings = sequential_zero_readings + 1;
+            if (sequential_zero_readings >= SESSION_ENDED_SEQUENTIAL_ZERO_READINGS) {
+                in_session = false;
+                sequential_zero_readings = 0; // Reset variable so its ready for next time
 
-            String msg = "{\"t\": " + String(timestamp_seconds) + ", \"event\": \"end_session\"}";
-            Particle.publish("bike_data", msg, PRIVATE | WITH_ACK);
+                String msg = "{\"t\": " + String(timestamp_seconds) + ", \"event\": \"end_session\"}";
+                Particle.publish("bike_data", msg, PRIVATE | WITH_ACK);
+            }
+        } else {
+            sequential_zero_readings = 0; // Reset variable if readings are not sequential
         }
     }
 }
