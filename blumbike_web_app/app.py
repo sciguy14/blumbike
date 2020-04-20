@@ -19,32 +19,32 @@ from flask import request
 
 # Initialize the app
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.SOLAR])
+app.title = "blum.bike"
 app.config.suppress_callback_exceptions = True
 server = app.server  # This is the Flask Parent Server that we can use to receive webhooks
 
 # Connect to Redis for persistent storage of session data
 r = redis.from_url(os.environ.get("REDIS_URL"), decode_responses=True)
 
-sidebar = dbc.Col(html.Div(
-    [
-        html.H3("blum.bike", className="card-header"),
-        html.Div(id='live-update-text', className="card-body")
-    ], className='card mb-3'
-), className='col-md-12 col-lg-4 sidebar')
+sidebar =   dbc.Col(
+                html.Div([
+                    html.H3("blum.bike", className="card-header"),
+                    html.Div(id='live-update-text', className="card-body")
+                ], className='card mb-3'),
+                className='col-md-12 col-lg-4 sidebar'
+            )
 
-content = dbc.Col(html.Div(
-    [
-        dcc.Graph(id='live-update-graph', config={'displayModeBar': False}),
-        dcc.Interval(
-            id='interval-component',
-            interval=1000,  # in milliseconds
-            n_intervals=0
-        )
-    ]
-
-), className='col-md-12 col-lg-8 col-lg-offset-4 main')
+content =   dbc.Col(className='col-md-12 col-lg-8 col-lg-offset-4 main',
+                    children=[
+                        html.Div(id='live-graph-div', style={'visibility': 'hidden'}, # Starts Hidden so the Graph can load first
+                                 children=[
+                                    dcc.Graph(id='live-update-graph', config={'displayModeBar': False})
+                                 ]),
+                        dcc.Interval(id='interval-component', interval=1000, n_intervals=0)
+                    ])
 
 app.layout = dbc.Container(dbc.Row([sidebar, content]), fluid=True)
+
 
 # A decorator function to require an api key for pushing data to this application
 # https://coderwall.com/p/4qickw/require-an-api-key-for-a-route-in-flask-using-only-a-decorator
@@ -151,7 +151,7 @@ def update_metrics(n):
 
 
 # Multiple components can update every time interval gets fired.
-@app.callback(Output('live-update-graph', 'figure'),
+@app.callback([Output('live-update-graph', 'figure'), Output('live-graph-div', 'style')],
               [Input('interval-component', 'n_intervals')])
 def update_graph_live(n):
     # Create the graph with subplots
@@ -275,7 +275,7 @@ def update_graph_live(n):
             'marker': dict(color='#fd7e14', size=6),
         }, 2, 1)
 
-    return fig
+    return fig, {'visibility': 'visible'}
 
 
 if __name__ == '__main__':
