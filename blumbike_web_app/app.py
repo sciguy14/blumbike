@@ -36,6 +36,12 @@ sidebar =   dbc.Col(
 
 content =   dbc.Col(className='col-md-12 col-lg-8 col-lg-offset-4 main',
                     children=[
+                        html.Div(id='graph-spinner', style={'text-align': 'center'},
+                                 children=[
+                                     dbc.Spinner(color="primary"),
+                                     html.P('Loading Graphs...')
+                                     ]
+                                 ),
                         html.Div(id='live-graph-div', style={'visibility': 'hidden'}, # Starts Hidden so the Graph can load first
                                  children=[
                                     dcc.Graph(id='live-update-graph', config={'displayModeBar': False})
@@ -43,7 +49,7 @@ content =   dbc.Col(className='col-md-12 col-lg-8 col-lg-offset-4 main',
                         dcc.Interval(id='interval-component', interval=1000, n_intervals=0)
                     ])
 
-app.layout = dbc.Container(dbc.Row([sidebar, content]), fluid=True)
+app.layout = dbc.Container(dbc.Row([sidebar, content]), style={'padding': '15px'}, fluid=True)
 
 
 # A decorator function to require an api key for pushing data to this application
@@ -151,7 +157,7 @@ def update_metrics(n):
 
 
 # Multiple components can update every time interval gets fired.
-@app.callback([Output('live-update-graph', 'figure'), Output('live-graph-div', 'style')],
+@app.callback([Output('live-update-graph', 'figure'), Output('graph-spinner', 'style'), Output('live-graph-div', 'style')],
               [Input('interval-component', 'n_intervals')])
 def update_graph_live(n):
     # Create the graph with subplots
@@ -275,7 +281,7 @@ def update_graph_live(n):
             'marker': dict(color='#fd7e14', size=6),
         }, 2, 1)
 
-    return fig, {'visibility': 'visible'}
+    return fig, {'display': 'none'}, {'visibility': 'visible'}
 
 
 if __name__ == '__main__':
