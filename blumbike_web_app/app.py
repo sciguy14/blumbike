@@ -31,14 +31,14 @@ sidebar =   dbc.Col(
                 html.Div([
                     html.H3("blum.bike", className="card-header"),
                     html.Div(id='live-update-body', className="card-body"),
-                    html.Div(id='live-update-footer', className="card-footer text-muted" )
+                    html.Div(id='live-update-footer', className="card-footer text-muted")
                 ], className='card mb-3'),
                 className='col-md-12 col-lg-4 sidebar'
             )
 
 content =   dbc.Col(className='col-md-12 col-lg-8 col-lg-offset-4 main',
                     children=[
-                        html.Div(id='graph-spinner', style={'text-align': 'center'},
+                        html.Div(id='graph-spinner', style={'textAlign': 'center'},
                                  children=[
                                      dbc.Spinner(color="primary"),
                                      html.P('Loading Graphs...')
@@ -51,7 +51,36 @@ content =   dbc.Col(className='col-md-12 col-lg-8 col-lg-offset-4 main',
                         dcc.Interval(id='interval-component', interval=1000, n_intervals=0)
                     ])
 
-app.layout = dbc.Container(dbc.Row([sidebar, content]), style={'padding': '15px'}, fluid=True)
+main = dbc.Row(children=[sidebar, content], id='main-content')
+
+footer = html.Footer(
+            dbc.Row(
+                dbc.Col(
+                    children=[
+                        html.Hr(),
+                        html.P(
+                            html.Small(
+                                children=[
+                                    "© 2020 ",
+                                    html.A('Jeremy Blum', href='https://www.jeremyblum.com'),
+                                    ", ",
+                                    html.A('Blum Idea Labs, LLC.', href='https://www.blumidealabs.com'),
+                                    html.Br(),
+                                    "blum.bike is still a work-in-progress. But it is open source! Learn more in the ",
+                                    html.A('blum.bike GitHub Repo', href='https://github.com/sciguy14/blumbike'),
+                                    "."
+                                ]
+                            )
+                        )
+                    ],
+                    className='col-lg-12',
+                    style={'textAlign': 'center'}
+                )
+            ),
+            className="footer"
+        )
+
+app.layout = dbc.Container([main, footer], style={'padding': '15px'}, fluid=True)
 
 
 # A decorator function to require an api key for pushing data to this application
@@ -151,10 +180,7 @@ def update_metrics(n):
             html.P('Current Bike Speed: {0:0.2f} MPH'.format(float(r.lindex('bike_mph', 0))), className='card-text'),
             html.P('Current Heart Rate: {0:0.2f} BPM'.format(float(r.lindex('heart_bpm', 0))), className='card-text'),
         ], 'Last Update: {}'.format(datetime.datetime.fromtimestamp(int(r.lindex('timestamp', 0))).strftime('%c'))
-    style = {'fontStyle': 'italic'}
-    return [
-        html.P('Waiting to receive data from bike...', className='card-text', style=style)
-    ], ""
+    return [html.P('Waiting to receive data from bike...', className='card-text', style={'fontStyle': 'italic'})], [""]
 
 
 # Multiple components can update every time interval gets fired.
@@ -162,7 +188,7 @@ def update_metrics(n):
               [Input('interval-component', 'n_intervals')])
 def update_graph_live(n):
     # Create the graph with subplots
-    fig = plotly.subplots.make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.3, subplot_titles=("Bike Speed", "Heart Rate"))
+    fig = plotly.subplots.make_subplots(rows=2, cols=1, vertical_spacing=0.3, subplot_titles=("Bike Speed", "Heart Rate"))
     fig.update_layout(
         xaxis=dict(
             fixedrange=True,

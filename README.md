@@ -1,6 +1,8 @@
 # BLUM.BIKE
 This repo contains the code and documentation related to my blum.bike IOT bike trainer project. My instance of this project is publically accessible at [blum.bike](https://blum.bike), but you can use this code to deploy your own implementation.
   
+This project is still a WORK-IN-PROGRESS!
+  
 Copyright 2020 [Jeremy Blum](https://www.jeremyblum.com), [Blum Idea Labs, LLC.](https://www.blumidealabs.com)  
 This project is licensed under the MIT license (see LICENSE.md for details).
 
@@ -34,7 +36,7 @@ blum.bike has two main components: some cloud-connected simple electronics mount
 The Particle Photon runs some simple firmware that determines session start/stop time, heart rate, bike speed, etc. It publishes all the relevant data to the particle cloud once per second. The particle cloud is configred to fire a webhook to the python web app each time an update is received. A secret API key is inserted into the webhook contents, which is validated by the receiving web app.
 
 ### Python Web App Implementation
-The web app is built as a python virtual env. It uses [Plotly Dash](https://dash.plotly.com/introduction) as the main mechanism for the UI and the graphs. It is deployed onto a [Heroku Free-Tier Dyno](https://www.heroku.com/pricing) and it leverages a [Heroku redis](https://elements.heroku.com/addons/heroku-redis) resource to maintain data for the duration of a session. To secure communication between the Particle cloud and the Heroku server, a matching API key is generated and stored in a Heroku environment variable for validating that the incoming webhook data from the Particle cloud is authentic.
+The web app is built as a python virtual env. It uses [Plotly Dash](https://dash.plotly.com/introduction) as the main mechanism for the UI and the graphs. It is deployed onto a [Heroku Free-Tier Dyno](https://www.heroku.com/pricing) and it leverages a [Heroku redis](https://elements.heroku.com/addons/heroku-redis) resource to maintain data for the duration of a session. To secure communication between the Particle cloud and the Heroku server, a matching API key is generated and stored in a Heroku environment variable for validating that the incoming webhook data from the Particle cloud is authentic. [Dash Bootstrap Components](https://dash-bootstrap-components.opensource.faculty.ai/) are used for the styling of the front-end.
 
 ## Instructions
 This section is still a work in progress as I am still developing this project.
