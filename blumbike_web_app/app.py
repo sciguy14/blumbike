@@ -30,7 +30,8 @@ r = redis.from_url(os.environ.get("REDIS_URL"), decode_responses=True)
 sidebar =   dbc.Col(
                 html.Div([
                     html.H3("blum.bike", className="card-header"),
-                    html.Div(id='live-update-text', className="card-body")
+                    html.Div(id='live-update-body', className="card-body"),
+                    html.Div(id='live-update-footer', className="card-footer text-muted" )
                 ], className='card mb-3'),
                 className='col-md-12 col-lg-4 sidebar'
             )
@@ -124,7 +125,7 @@ def rest_update():
         return {"reply": "event '{}' not understood".format(latest_data['event'])}, 501
 
 
-@app.callback(Output('live-update-text', 'children'),
+@app.callback([Output('live-update-body', 'children'), Output('live-update-footer', 'children')],
               [Input('interval-component', 'n_intervals')])
 def update_metrics(n):
 
@@ -135,28 +136,25 @@ def update_metrics(n):
         heart_readings = [float(i) for i in r.lrange('heart_bpm', 0, -1)]
         if len(speed_readings) > 0 and len(heart_readings) > 0:
             return [
-                html.H5('Last session ended: {}'.format(date.duration(end_datetime)), className='card-title'),
-                html.P('Session Duration: {}'.format(date.delta(start_datetime, end_datetime)[0]), className='card-text'),
+                html.H5('Last Session Duration: {}'.format(date.delta(start_datetime, end_datetime)[0]), className='card-text'),
                 html.Br(),
                 html.P('Session Average Bike Speed: {0:0.2f} MPH'.format(sum(speed_readings)/len(speed_readings)), className='card-text'),
                 html.P('Session Max Bike Speed: {0:0.2f} MPH'.format(max(speed_readings)), className='card-text'),
                 html.Br(),
                 html.P('Session Average Heart Rate: {0:0.2f} BPM'.format(sum(heart_readings)/len(heart_readings)), className='card-text'),
                 html.P('Session Max Heart Rate: {0:0.2f} BPM'.format(max(heart_readings)), className='card-text')
-            ]
+            ], 'Last session ended: {}'.format(date.duration(end_datetime))
     elif r.exists('session_start') and r.exists('timestamp'):
         start_datetime = datetime.datetime.fromtimestamp(int(r.get('session_start')))
         return [
             html.H5('Current session started: {}'.format(date.duration(start_datetime)), className='card-title'),
-            html.P('Last Update: {}'.format(datetime.datetime.fromtimestamp(int(r.lindex('timestamp', 0))).strftime('%c')), className='card-text'),
-            html.Br(),
             html.P('Current Bike Speed: {0:0.2f} MPH'.format(float(r.lindex('bike_mph', 0))), className='card-text'),
-            html.P('Current Heart Rate: {0:0.2f} BPM'.format(float(r.lindex('heart_bpm', 0))), className='card-text')
-        ]
+            html.P('Current Heart Rate: {0:0.2f} BPM'.format(float(r.lindex('heart_bpm', 0))), className='card-text'),
+        ], 'Last Update: {}'.format(datetime.datetime.fromtimestamp(int(r.lindex('timestamp', 0))).strftime('%c'))
     style = {'fontStyle': 'italic'}
     return [
         html.P('Waiting to receive data from bike...', className='card-text', style=style)
-    ]
+    ], ""
 
 
 # Multiple components can update every time interval gets fired.
