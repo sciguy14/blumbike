@@ -1,6 +1,7 @@
 html {
   position: relative;
   min-height: 100%;
+  width: 100%;
 }
 body {
   /* Margin bottom by footer height */
@@ -9,7 +10,8 @@ body {
 .footer {
   position: absolute;
   bottom: 0;
-  width: 100%;
+  left: 5%;
+  right: 5%;
   /* Set the fixed height of the footer here */
   height: 100px;
 }
