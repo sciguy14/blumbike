@@ -6,3 +6,9 @@ venv/
 
 # Exclude Compiled Photon firmware binaries
 *.bin
+
+# Exclude 3D Printer buildplate files
+*.thing
+
+# Exclude Sketchup Backup Files
+*.skb
