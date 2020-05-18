@@ -4,9 +4,10 @@
 // This code is licensed under MIT license (see LICENSE.md for details)
 
 // Define Pin Constants
-const int RPM_PIN           = 1; // The output of the Inverting Comparator w/ Hysteresis connects to Photon Pin D1
-const int BPM_PIN           = 3; // Heart rate BPM output is connected to Photon Pin D3
-const int ONBOARD_LED_PIN   = 7; // The onboard Blue LED is connected to Photon Pin D7
+const int ENDSTOP_PIN       = A5; // The switch that triggers when the resistance adjuster stepper is at the end of its range
+const int RPM_PIN           = D1; // The output of the Inverting Comparator w/ Hysteresis for measuring bike speed
+const int BPM_PIN           = D3; // The output pulses from the Heart rate BPM Polar receiver
+const int ONBOARD_LED_PIN   = D7; // The onboard Blue LED
 
 // Configuration Constants
 const unsigned int UPDATE_RATE_MS = 1000; // Update and send the new values every 1000 milliseconds (this should not be any lower than 1000)
@@ -48,7 +49,8 @@ volatile unsigned long beat_time = 0;
 volatile double interrupt_bpm = 0.0;
 
 void setup(){
-    // Set Pin Directions
+    // Set Pin Directions/Modes
+    pinMode(ENDSTOP_PIN, INPUT_PULLUP)
     pinMode(RPM_PIN, INPUT);
     pinMode(BPM_PIN, INPUT);
     pinMode(ONBOARD_LED_PIN, OUTPUT);
