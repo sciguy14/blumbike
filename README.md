@@ -20,17 +20,18 @@ blum.bike has two main components: some cloud-connected simple electronics mount
 
 ### Key Bike Hardware
 * A road bike mounted on a stationary bike stand ([Amazon Link](https://amzn.to/3ezBoth)). A piece of black tape is added to the dyno. Its rotation in front of the optical sensor is used to compute dyno RPM.
-* A [3D printed arm](blumbike_hardware/mechanical/breadboard_holder/) for mounting a full-length breadboard to the rear of the bike dyno. This part snaps in place, but is held securely with a healthy dose of hot glue.
+* A [3D printed arm](blumbike_hardware/mechanical/breadboard_holder/) for mounting a full-length breadboard to the rear of the bike dyno. This part snaps in place, and is fixed in place with a hex stnadoff that inserts into one of the bolts on the Dyno.
 * A full-length breadboard with the following main elements (see the Fritzing breadboard images in the [blumbike_hardware/schematics](blumbike_hardware/schematics/) folder).
     * A Particle Photon ([Documentation](https://docs.particle.io/datasheets/wi-fi/photon-datasheet)) cloud-connected microcontroller.
     * A QRD1114 optical sensor ([Datasheet](blumbike_hardware/datasheets/QRD1114_Reflective_Object_Sensor.pdf)) for measuring dyno RPM.
     * A comparator/hysteresis circuit based on an OPA344 Op-Amp ([Datasheet](blumbike_hardware/datasheets/OPA344_Rail-to-Rail_Op-Amp.pdf)) for cleaning up the RPM measurement.
-    * A Polar wireless heart rate receiver ([Datasheet](blumbike_hardware/datasheets/Polar_Heart_Rate_Receiver.pdf)).
+    * A Polar wireless heart rate receiver ([Datasheet](blumbike_hardware/datasheets/Polar_Heart_Rate_Receiver.pdf)). This is attached via a wire harness to put it close to the bike seat.
     * A Polar T34 Chest strap heart rate sensor ([Amazon Link](https://amzn.to/2RPv1s9)).
     * A L293D H-bridge ([Datasheet](blumbike_hardware/datasheets/L293D_Dual_H-Bridge.pdf)) for driving a stepper motor that adjusts dyno resistance.
     * A L7805 Linear 5V regulator ([Datasheet](blumbike_hardware/datasheets/L7805_Linear_Regulator.pdf)) (plus bulk decoupling caps) for powering the logic elements from a 12V AC/DC wall adapter.
 * A 12V, 1.5A AC/DC Wall adapter
-* A NEMA-17 Stepper motor and 3D-printed adapter for controlling dyno resistance (not yet implemented)
+* A NEMA-17 Stepper motor and 3D-printed adapter for controlling dyno resistance
+* An endstop switch clipped onto the adjustable dyno with a 3D-printed bracket (so the stepper motor can home its resistance)
 
 ### Photon Firmware and Cloud
 The Particle Photon runs some simple firmware that determines session start/stop time, heart rate, bike speed, etc. It publishes all the relevant data to the particle cloud once per second. The particle cloud is configred to fire a webhook to the python web app each time an update is received. A secret API key is inserted into the webhook contents, which is validated by the receiving web app.
@@ -41,7 +42,7 @@ The web app is built as a python virtual env. It uses [Plotly Dash](https://dash
 ## Instructions
 This section is still a work in progress as I am still developing this project.
 1. Fork this Repo to your own gitHub account and modify it as you desire.
-2. Build the circuit as described by the schematic. You will probably need to use a scope or a logic analyzer to get the alignment of the optical sensor working properly to generate consistent pulses on each dyno rotation.
+2. 3D Print and assemble the mechanical elements. Build the circuit as described by the schematic. You will probably need to use a scope or a logic analyzer to get the alignment of the optical sensor working properly to generate consistent pulses on each dyno rotation.
 3. Associate the Particle Photon to your Wi-Fi network and to your Particle Cloud account.
 4. Use the Particle Dev IDE to flash the firmware onto the Photon via the cloud, or copy the firmware into their cloud IDE and flash it from there. Ensure that you see events streaming into the Particle Cloud interface for your device.
 5. On the Particle Cloud Integration page, setup a new Webhook. Choose to create a custom template and populate it as follows (replacing the <> items accordingly):
