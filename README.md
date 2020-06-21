@@ -27,8 +27,8 @@ blum.bike has two main components: some cloud-connected simple electronics mount
     * A comparator/hysteresis circuit based on an OPA344 Op-Amp for cleaning up the RPM measurement.
     * A Polar wireless heart rate receiver. This is attached via a wire harness to put it close to the bike seat.
     * A Polar T34 Chest strap heart rate sensor ([Amazon Link](https://amzn.to/2RPv1s9)).
-    * A Trinamic TMC2209 Stepper Driver breakout board ([Datasheet](blumbike_hardware/datasheets/L293D_Dual_H-Bridge.pdf)) for driving a stepper motor that adjusts dyno resistance.
-    * A L7805 Linear 5V regulator ([Datasheet](blumbike_hardware/datasheets/L7805_Linear_Regulator.pdf)) (plus bulk decoupling caps) for powering the logic elements from the 12V AC/DC wall adapter (12V is used for the Stepper Motor supply).
+    * A Trinamic TMC2209 Stepper Driver breakout board for driving a stepper motor that adjusts dyno resistance.
+    * A L7805 Linear 5V regulator (plus bulk decoupling caps) for powering the logic elements from the 12V AC/DC wall adapter (12V is used for the Stepper Motor supply).
 * A 12V, 1.5A AC/DC Wall adapter
 * A NEMA-17 Stepper motor with a Planetary Gearbox ([Amazon Link](https://amzn.to/3emq3wr)) and 3D-printed adapter for controlling dyno resistance
 * An endstop switch clipped onto the adjustable dyno with a 3D-printed bracket (so the stepper motor can home its resistance)
