@@ -20,17 +20,17 @@ blum.bike has two main components: some cloud-connected simple electronics mount
 
 ### Key Bike Hardware
 * A road bike mounted on a stationary bike stand ([Amazon Link](https://amzn.to/3ezBoth)). A piece of black tape is added to the dyno. Its rotation in front of the optical sensor is used to compute dyno RPM.
-* A [3D printed arm](blumbike_hardware/mechanical/breadboard_holder/) for mounting a full-length breadboard to the rear of the bike dyno. This part snaps in place, and is fixed in place with a hex stnadoff that inserts into one of the bolts on the Dyno.
-* A full-length breadboard with the following main elements (see the Fritzing breadboard images in the [blumbike_hardware/schematics](blumbike_hardware/schematics/) folder).
+* A [3D printed arm](blumbike_hardware/mechanical/breadboard_holder/) for mounting a full-length breadboard to the rear of the bike dyno. This part snaps in place, and is fixed in place with a hex standoff that inserts into one of the bolts on the Dyno.
+* A full-length breadboard with the following main elements (see the Fritzing breadboard images in the [blumbike_hardware/schematics](blumbike_hardware/schematics/) folder and relevant datasheets in the [blumbike_hardware/datasheets](blumbike_hardware/datasheets/) folder).
     * A Particle Photon ([Documentation](https://docs.particle.io/datasheets/wi-fi/photon-datasheet)) cloud-connected microcontroller.
-    * A QRD1114 optical sensor ([Datasheet](blumbike_hardware/datasheets/QRD1114_Reflective_Object_Sensor.pdf)) for measuring dyno RPM.
-    * A comparator/hysteresis circuit based on an OPA344 Op-Amp ([Datasheet](blumbike_hardware/datasheets/OPA344_Rail-to-Rail_Op-Amp.pdf)) for cleaning up the RPM measurement.
-    * A Polar wireless heart rate receiver ([Datasheet](blumbike_hardware/datasheets/Polar_Heart_Rate_Receiver.pdf)). This is attached via a wire harness to put it close to the bike seat.
+    * A QRD1114 optical sensor for measuring dyno RPM.
+    * A comparator/hysteresis circuit based on an OPA344 Op-Amp for cleaning up the RPM measurement.
+    * A Polar wireless heart rate receiver. This is attached via a wire harness to put it close to the bike seat.
     * A Polar T34 Chest strap heart rate sensor ([Amazon Link](https://amzn.to/2RPv1s9)).
-    * A L293D H-bridge ([Datasheet](blumbike_hardware/datasheets/L293D_Dual_H-Bridge.pdf)) for driving a stepper motor that adjusts dyno resistance.
-    * A L7805 Linear 5V regulator ([Datasheet](blumbike_hardware/datasheets/L7805_Linear_Regulator.pdf)) (plus bulk decoupling caps) for powering the logic elements from a 12V AC/DC wall adapter.
+    * A Trinamic TMC2209 Stepper Driver breakout board ([Datasheet](blumbike_hardware/datasheets/L293D_Dual_H-Bridge.pdf)) for driving a stepper motor that adjusts dyno resistance.
+    * A L7805 Linear 5V regulator ([Datasheet](blumbike_hardware/datasheets/L7805_Linear_Regulator.pdf)) (plus bulk decoupling caps) for powering the logic elements from the 12V AC/DC wall adapter (12V is used for the Stepper Motor supply).
 * A 12V, 1.5A AC/DC Wall adapter
-* A NEMA-17 Stepper motor and 3D-printed adapter for controlling dyno resistance
+* A NEMA-17 Stepper motor with a Planetary Gearbox ([Amazon Link](https://amzn.to/3emq3wr)) and 3D-printed adapter for controlling dyno resistance
 * An endstop switch clipped onto the adjustable dyno with a 3D-printed bracket (so the stepper motor can home its resistance)
 
 ### Photon Firmware and Cloud

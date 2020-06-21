@@ -2,42 +2,48 @@
 // Copyright 2020 Jeremy Blum, Blum Idea Labs, LLC.
 // www.jeremyblum.com
 // This code is licensed under MIT license (see LICENSE.md for details)
-#include "Stepper.h"
+
+// Define compiler replacements for Stepper motor direction
+#define HIGHER_RESISTANCE LOW
+#define LOWER_RESISTANCE HIGH
+
+// Define compiler replacements for endstop start_session
+#define PRESSED LOW
+#define UNPRESSED HIGH
 
 // Define Pin Constants
 const int ENDSTOP_PIN       = A3; // The switch that triggers when the resistance adjuster stepper is at the end of its range
 const int RPM_PIN           = D1; // The output of the inverting comparator w/ hysteresis for measuring bike speed
 const int BPM_PIN           = D3; // The output pulses from the Heart rate BPM Polar receiver
 const int ONBOARD_LED_PIN   = D7; // The onboard blue LED
-const int STEPPER_COIL1_EN  = A0; // Stepper motor coil 1 H-Bridge Enable
-const int STEPPER_COIL2_EN  = A1; // Stepper motor coil 2 H-Bridge Enable
-const int STEPPER_COIL1_MC1 = D2; // Stepper motor coil 1 H-Bridge switch 1 control
-const int STEPPER_COIL1_MC2 = D5; // Stepper motor coil 1 H-Bridge switch 2 control
-const int STEPPER_COIL2_MC1 = D4; // Stepper motor coil 2 H-Bridge switch 1 control
-const int STEPPER_COIL2_MC2 = D6; // Stepper motor coil 2 H-Bridge switch 2 control
+const int STEPPER_ENN       = D4; // TMC2209 Stepper Driver Enable Pin (Active Low)
+const int STEPPER_STEP      = D5; // TMC2209 Stepper Driver Step Pin
+const int STEPPER_DIR       = D6; // TMC2209 Stepper Driver Direction Pin
 
 // Configuration Constants
-const unsigned int UPDATE_RATE_MS = 1000; // Update and send the new values every 1000 milliseconds (this should not be any lower than 1000)
-const unsigned int BPM_INTERRUPTED_THRESHOLD = 2000; // If more than this many milliseconds have elapsed since the last BPM trigger, presume the sensor is not transmitting
-const unsigned int SESSION_STARTED_SEQUENTIAL_NON_ZERO_READINGS = 2; // A new session is triggered when this many non-zero RPM readings are found in a row
-const unsigned int SESSION_ENDED_SEQUENTIAL_ZERO_READINGS = 6; // A session is ended when this many zero RPM readings are found in a row
-const double RPM_MOVEMENT_THRESHOLD = 1.0; // To address floating point errors, set this value as the movement threshold. Anything below this is effectively "zero" movement
-const unsigned int ZERO_RESISTANCE_TURNS = 2; // This is the numer of full turns the stepper motor must do to achieve the minimum resistance setting (just barely touching the wheel)
-const double ROTATIONS_PER_RESISTANCE_STEP = 0.25; // Every 1/4th turn of the stepper motor is equal to one "resistance step"
-const unsigned int DEFAULT_RESISTANCE = 1; // This is the default starting session resistance
-const unsigned int MAX_RESISTANCE = 8; // This is the maximum resistance setting
-const unsigned int MIN_RESISTANCE = 1; // This is the minimum resistance setting
+const unsigned int UPDATE_RATE_MS                               = 1000; // Update and send the new values every 1000 milliseconds (this should not be any lower than 1000)
+const unsigned int BPM_INTERRUPTED_THRESHOLD                    = 2000; // If more than this many milliseconds have elapsed since the last BPM trigger, presume the sensor is not transmitting
+const unsigned int SESSION_STARTED_SEQUENTIAL_NON_ZERO_READINGS = 2;    // A new session is triggered when this many non-zero RPM readings are found in a row
+const unsigned int SESSION_ENDED_SEQUENTIAL_ZERO_READINGS       = 6;    // A session is ended when this many zero RPM readings are found in a row
+const double RPM_MOVEMENT_THRESHOLD                             = 1.0;  // To address floating point errors, set this value as the movement threshold. Anything below this is effectively "zero" movement
+const double ZERO_RESISTANCE_TURNS                              = 2.75;  // The number of full output shaft turns the stepper motor must do to achieve the minimum resistance setting (just barely touching the wheel)
+const double ROTATIONS_PER_RESISTANCE_STEP                      = 0.25; // Every 1/4th turn of the stepper motor output shaft is equal to one "resistance step"
+const unsigned int DEFAULT_RESISTANCE                           = 1;    // This is the default starting session resistance
+const unsigned int MAX_RESISTANCE                               = 8;    // This is the maximum resistance setting
+const unsigned int MIN_RESISTANCE                               = 1;    // This is the minimum resistance setting
 
 // Define Math Constants
-const double BIKE_WHEEL_DIAMETER = 27.0;            // inches
-const double DYNO_WHEEL_DIAMETER = 1.80;            // inches
-const double PI                  = 3.14159265359;   // ratio
-const double FEET_PER_MILE       = 5280.0;          // ratio
-const double INCHES_PER_FOOT     = 12.0;            // ratio
-const double MINUTES_PER_HOUR    = 60.0;            // ratio
-const double SECONDS_PER_MINUTE  = 60.0;            // ratio
-const double MILLIS_PER_SECOND   = 1000.0;          // ratio
-const int STEPS_PER_REV = 200;                      // The NEMA-17 Stepper motor has 200 steps/rev
+const double BIKE_WHEEL_DIAMETER    = 27.0;            // inches
+const double DYNO_WHEEL_DIAMETER    = 1.80;            // inches
+const double PI                     = 3.14159265359;   // ratio
+const double FEET_PER_MILE          = 5280.0;          // ratio
+const double INCHES_PER_FOOT        = 12.0;            // ratio
+const double MINUTES_PER_HOUR       = 60.0;            // ratio
+const double SECONDS_PER_MINUTE     = 60.0;            // ratio
+const double MILLIS_PER_SECOND      = 1000.0;          // ratio
+const double STEPS_PER_REV_NO_GEAR  = 200.0;           // The NEMA-17 Stepper motor has 200 steps/rev
+const double MICROSTEPPING          = 8.0;             // MS1 and MS2 are pulled down by default putting us in 1/8 Microstepping mode
+const double GEAR_RATIO             = 5.18;            // The planetary gearbox for the motor is 5.18:1
 
 // Computed Constants
 const double BIKE_WHEEL_CIRCUMFERENCE_INCHES       = PI * BIKE_WHEEL_DIAMETER;                                          // inches
@@ -45,6 +51,7 @@ const double BIKE_WHEEL_CIRCUMFERENCE_FEET         = BIKE_WHEEL_CIRCUMFERENCE_IN
 const double BIKE_WHEEL_REVOLUTIONS_PER_MILE       = FEET_PER_MILE / BIKE_WHEEL_CIRCUMFERENCE_FEET;                     // revs / mile
 const double DYNO_WHEEL_CIRCUMFERENCE_INCHES       = PI * DYNO_WHEEL_DIAMETER;                                          // inches
 const double BIKE_DYNO_CIRCUMFERENCE_RATIO         = BIKE_WHEEL_CIRCUMFERENCE_INCHES / DYNO_WHEEL_CIRCUMFERENCE_INCHES; // rpm multiplier
+const double STEPS_PER_REV                         = STEPS_PER_REV_NO_GEAR * GEAR_RATIO * MICROSTEPPING;                // The actual number of step pulses to go a full rotation of the output shaft
 
 // Define Cloud Functions
 int resistanceUp(String na);
@@ -66,9 +73,6 @@ volatile unsigned long last_beat_time = 0;
 volatile unsigned long beat_time = 0;
 volatile double interrupt_bpm = 0.0;
 
-// Initialize the stepper library - pass it the Switch control pins
-Stepper resistance_dial(STEPS_PER_REV, STEPPER_COIL1_MC1, STEPPER_COIL1_MC2, STEPPER_COIL2_MC1, STEPPER_COIL2_MC2);
-
 void setup(){
     // register the cloud functions
     Particle.function("resistance_up", resistanceUp);
@@ -79,10 +83,10 @@ void setup(){
     pinMode(RPM_PIN, INPUT);
     pinMode(BPM_PIN, INPUT);
     pinMode(ONBOARD_LED_PIN, OUTPUT);
-    pinMode(STEPPER_COIL1_EN, OUTPUT);
-    pinMode(STEPPER_COIL2_EN, OUTPUT);
-    digitalWrite(STEPPER_COIL1_EN, LOW);
-    digitalWrite(STEPPER_COIL2_EN, LOW);
+    pinMode(STEPPER_ENN, OUTPUT);
+    pinMode(STEPPER_STEP, OUTPUT);
+    pinMode(STEPPER_DIR, OUTPUT);
+    digitalWrite(STEPPER_ENN, HIGH);
     digitalWrite(ONBOARD_LED_PIN, LOW);
 
     // Home the Resistance Stepper
@@ -203,69 +207,78 @@ void bpmInterrupt()
 
 void homeStepper()
 {
-    // Set the speed for the stepper motor
-    resistance_dial.setSpeed(60); // 60 RPM
-
-    // Energize the Coils
-    digitalWrite(STEPPER_COIL1_EN, HIGH);
-    digitalWrite(STEPPER_COIL2_EN, HIGH);
-    delay(10);
-
-    // If the end stop pin is already depressed, we back off until it isn't and then rehome so we are as consistent as possible
-    if (digitalRead(ENDSTOP_PIN) == LOW)
+    // If the endstop pin is already pressed, we back off until it isn't and then rehome so we are as consistent as possible
+    if (digitalRead(ENDSTOP_PIN) == PRESSED)
     {
-        while (digitalRead(ENDSTOP_PIN) == LOW)
+        while (digitalRead(ENDSTOP_PIN) == PRESSED)
         {
-            resistance_dial.step(-STEPS_PER_REV/8); // Raise one eighth turn at a time
-            delay(10);
+            move(HIGHER_RESISTANCE, 0.01); // Raise a little bit at a time
         }
-        resistance_dial.step(-STEPS_PER_REV/8); // Raise a bit more
+        move(HIGHER_RESISTANCE, 0.25); // Raise another quarter output shaft turn
         delay(100);
     }
-    while (digitalRead(ENDSTOP_PIN) == HIGH)
+
+    // Move twoards the endstop until it is pressed
+    while (digitalRead(ENDSTOP_PIN) == UNPRESSED)
     {
-        resistance_dial.step(STEPS_PER_REV/8); // Lower one eighth turn at a time
-        delay(10);
+        move(LOWER_RESISTANCE, 0.01); // Lower a little bit at a time
     }
     // The Stepper should now be "homed" to the lowest position with the endstop switch depressed
 
+    delay(1000);
+
     // Raise to the zero resistance point
-    resistance_dial.step(-STEPS_PER_REV*ZERO_RESISTANCE_TURNS);
+    move(HIGHER_RESISTANCE, ZERO_RESISTANCE_TURNS);
     resistance = 0;
 
-    // De-energize the Coils because the stepper gets super hot
-    digitalWrite(STEPPER_COIL1_EN, LOW);
-    digitalWrite(STEPPER_COIL2_EN, LOW);
+    delay(1000);
 }
 
 // Functions for Adjusting the Dyno resistance
 void adjustResistanceRelative(int levels)
 {
+    // The endstop should not be pressed unless we fell down a bunch since homing
+    if (digitalRead(ENDSTOP_PIN) == PRESSED) homeStepper();
+
     // Bound us to the min/max
     if (resistance + levels > MAX_RESISTANCE) levels = MAX_RESISTANCE - resistance;
     if (resistance + levels < MIN_RESISTANCE) levels = MIN_RESISTANCE - resistance;
 
-    resistance_dial.setSpeed(60); // 60 RPM
-
-    if (digitalRead(ENDSTOP_PIN) == HIGH)
-    {
-        // Energize the coils
-        digitalWrite(STEPPER_COIL1_EN, HIGH);
-        digitalWrite(STEPPER_COIL2_EN, HIGH);
-        delay(10);
-
-        // Move the Motor
-        resistance_dial.step(int(-1.0*double(STEPS_PER_REV)*ROTATIONS_PER_RESISTANCE_STEP*double(levels)));
-        resistance = resistance + levels;
-
-        // De-energize the Coils because the stepper gets super hot
-        digitalWrite(STEPPER_COIL1_EN, LOW);
-        digitalWrite(STEPPER_COIL2_EN, LOW);
-    }
+    // Move the Motor
+    bool dir = LOWER_RESISTANCE;
+    if (levels > 0) dir = HIGHER_RESISTANCE;
+    move(dir, double(levels)*ROTATIONS_PER_RESISTANCE_STEP);
+    resistance = resistance + levels;
 }
 void adjustResistanceAbsolute(unsigned int level)
 {
     adjustResistanceRelative(level-resistance);
+}
+
+// Move the stepper Motor
+// Motor is kept disabled when not moving
+// This function is blocking
+// dir = Direction of rotation
+// rotations = Number of output shaft rotations
+void move(bool dir, double rotations)
+{
+    //Set direction and enable motor
+    digitalWrite(STEPPER_DIR, dir);
+    digitalWrite(STEPPER_ENN, LOW);
+
+    double steps = rotations * STEPS_PER_REV;
+    double i = 0.0;
+    while (i < steps)
+    {
+        digitalWrite(STEPPER_STEP, HIGH);
+        delayMicroseconds(75); // I experienced FreeRTOS timer issues if making this number too large (more than ~500)
+        digitalWrite(STEPPER_STEP, LOW);
+        delayMicroseconds(75);
+        i = i + 1.0;
+
+    }
+    // Disable Motor
+    digitalWrite(STEPPER_ENN, HIGH);
 }
 
 // Cloud functions that are called upon a matching POST request
