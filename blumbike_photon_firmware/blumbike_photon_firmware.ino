@@ -58,6 +58,7 @@ int resistanceUp(String na);
 int resistanceDown(String na);
 
 // Global Variables
+char ip[128];
 bool in_session = false;
 unsigned long resistance = 0;
 unsigned long sequential_non_zero_readings = 0;
@@ -88,6 +89,11 @@ void setup(){
     pinMode(STEPPER_DIR, OUTPUT);
     digitalWrite(STEPPER_ENN, HIGH);
     digitalWrite(ONBOARD_LED_PIN, LOW);
+
+    // Get our Public IP address
+    // On the Web-app we only allow resistance control if the request originates from the same IP
+    Particle.subscribe("particle/device/ip", ip_handler, MY_DEVICES);
+    Particle.publish("particle/device/ip", PRIVATE);
 
     // Home the Resistance Stepper
     homeStepper();
@@ -168,7 +174,7 @@ void loop() {
                 in_session = true;
                 sequential_non_zero_readings = 0; // Reset variable so its ready for next time
 
-                String msg = "{\"t\": " + String(timestamp_seconds) + ", \"event\": \"start_session\"}";
+                String msg = "{\"t\": " + String(timestamp_seconds) + ", \"event\": \"start_session\", \"ip\": \"" + String(ip) + "\"}";
                 Particle.publish("bike_data", msg, PRIVATE | WITH_ACK);
             }
         } else {
@@ -291,4 +297,9 @@ int resistanceDown(String na)
 {
     adjustResistanceRelative(-1);
     return resistance;
+}
+
+
+void ip_handler(const char *topic, const char *data) {
+    strncpy(ip, (char *) data, 128);
 }
