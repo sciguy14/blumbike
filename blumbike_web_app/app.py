@@ -17,38 +17,21 @@ import dash_html_components as html
 import dash_core_components as dcc
 from plotly.subplots import make_subplots
 from dash.dependencies import Input, Output
-from flask import request
+from flask import request, session
 
 
 # Initialize the app
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.SOLAR], update_title=None)
 app.title = "blum.bike"
 server = app.server  # This is the Flask Parent Server that we can use to receive webhooks
-
+server.config['SECRET_KEY'] = os.environ.get("SECRET_KEY")
 
 # Connect to Redis for persistent storage of session data
 r = redis.from_url(os.environ.get("REDIS_URL"), decode_responses=True)
 
-# Check if user is authorized and generate sidebar accordingly
-# User is authorized to control bike resistance if their originating Public IP matches that of the Particle Photon that is sending updates
-# This is obviously not immune from being compromised, since IPs can be spoofed, but it's not a huge deal for this application
-# We also show the control option when running in local dev mode
-control_sidebar = None
-auth_reason = False
-if r.exists('bike_ip') and request.environ['REMOTE_ADDR'] == r.get('bike_ip'):
-    auth_reason = "IP Match"
-elif "mode" in os.environ and str(os.environ.get("mode")) == "dev":
-    auth_reason = "Dev Mode"
-if auth_reason:
-    # User is Authorized for Control
-    control_sidebar = html.Div([html.H2("blum.bike Resistance Control", className="card-header"),
-                                html.Div(id='control-panel', children=[html.P('Control Functions TBD')], className="card-body"),
-                                html.Div(id='control-panel-footer', children=["Control Authorized (" + auth_reason + ")"], className="card-footer text-muted")
-                               ], className='card mb-3')
-
 sidebar =   dbc.Col(children=[
-                        control_sidebar,
-                        html.Div([
+                        html.Div(id='control-sidebar', hidden=True, children=[], className='card mb-3'),
+                        html.Div(id='stats-sidebar', children=[
                             html.H2("blum.bike Stats", className="card-header"),
                             html.Div(id='live-update-body', className="card-body"),
                             html.Div(id='live-update-footer', className="card-footer text-muted")
@@ -146,7 +129,6 @@ def rest_update():
         print("STARTED A NEW SESSION: {}".format(latest_data))
         return {"reply": "started session"}
 
-
     if latest_data['event'] == "end_session":
         # When user has finished a new session (sequential non-zero dyno RPMs), we can note that in the UI
         r.set("session_end", latest_data['t'])
@@ -177,6 +159,30 @@ def rest_update():
     else:
         print("APPENDED: {}".format(latest_data))
         return {"reply": "event '{}' not understood".format(latest_data['event'])}, 501
+
+
+@app.callback([Output('control-sidebar', 'children'), Output('control-sidebar', 'hidden')],
+              [Input('interval-component', 'n_intervals')])
+def update_control_sidebar(n):
+    # Check if user is authorized and generate sidebar accordingly
+    # User is authorized to control bike resistance if their originating Public IP matches that of the Particle Photon that is sending updates
+    # This is obviously not immune from being compromised, since IPs can be spoofed, but it's not a huge deal for this application
+    # We also show the control option when running in local dev mode
+    auth_reason = False
+
+    session['client_ip'] = request.environ.get('HTTP_X_REAL_IP', request.remote_addr)
+
+    if r.exists('bike_ip') and session.get('client_ip') and session['client_ip'] == r.get('bike_ip'):
+        auth_reason = "IP Match"
+    elif "mode" in os.environ and str(os.environ.get("mode")) == "dev":
+        auth_reason = "Dev Mode"
+
+    if auth_reason:
+        return [html.H2("blum.bike Resistance Control", className="card-header"),
+                html.Div(id='control-panel', children=[html.P('Control Functions Loading...')], className="card-body"),
+                html.Div(id='control-panel-footer', children=["Control Authorized (" + auth_reason + ")"], className="card-footer text-muted")], False
+
+    return [], True
 
 
 @app.callback([Output('live-update-body', 'children'), Output('live-update-footer', 'children')],

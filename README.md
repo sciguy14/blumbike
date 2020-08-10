@@ -66,7 +66,8 @@ This section is still a work in progress as I am still developing this project.
 7. Choose to "Deploy from GitHub" and connect it to your GitHub account. Point it at the repo that you forked to your account.
 8. On the "Settings" page for the dyno, add the following "Config Vars":  
     `apikey` = `<YOUR_GENERATED_API_KEY>` - this is the same API key you configured in the JSON webhook.  
-    `PROJECT_PATH` = `blumbike_web_app` - this will make the Heroku automatic GitHub deployment look in the right subfolder of this repo for the application ([more info about this](https://stackoverflow.com/a/53221996)).
+    `PROJECT_PATH` = `blumbike_web_app` - this will make the Heroku automatic GitHub deployment look in the right subfolder of this repo for the application ([more info about this](https://stackoverflow.com/a/53221996)).  
+    `SECRET_KEY` = `<ANY_RANDOM_KEY_YOU WANT>` - this is used for session management in the app.
 9. Add a buildpack that will ensure the right subdirectory is used for automatic deployment. Add https://github.com/timanovsky/subdir-heroku-buildpack.git to the buildpack list and drag it to the top of the list (above python).
 10. On the "Resources" page for your Dyno add a Heroku Redis instance. This should automatically add a "Config Var" with your `REDIS_URL`. This app will use this redis store to hold your data.
 11. On the "Deploy" page, choose to deploy your master branch. Future deploys will happen automatically each time you push local changes to your upstream master branch.
@@ -81,6 +82,7 @@ Create a new PyCharm project in the `blumbike_web_app` folder. Set up the Virtua
 * `mode` = `dev` - This will configure the server to run on local port 8050, which is what you used to setup ngrok.
 * `apikey` = `<PUT_YOUR_API_KEY_HERE>` - This is the same apikey that you added to the particle webhook JSON message and to heroku.
 * `REDIS_URL` = `<PUT_YOUR_REDIS_URL_HERE>` - You can use the same REDIS URL that is used by Heroku, or you can run a seperate development redis instance on your local machine and point at that.
+* `SECRET_KEY` = `<ANY_RANDOM_KEY_YOU WANT>` - This is the same secret that you entered in heroku.
   
 Run the PyCharm configuration that you setup, and the ngrok instance should start showing "200 OK" responses. Visit [localhost:8050/](http://localhost:8050/) in your webbrowser to see your local instance of the web app. You can see more details about the webhooks coming into your machine via the ngrok inspection interface at [localhost:4040/inspect/http](http://localhost:8050/).
 
