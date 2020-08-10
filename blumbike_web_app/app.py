@@ -179,8 +179,8 @@ def update_control_sidebar(n):
 
     if auth_reason:
         return [html.H2("blum.bike Resistance Control", className="card-header"),
-                html.Div(id='control-panel', children=[html.P('Control Functions Loading for bike at ' + r.get('bike_ip'))], className="card-body"),
-                html.Div(id='control-panel-footer', children=["Control Authorized for IP " + session['client_ip'] + " (" + auth_reason + ")"], className="card-footer text-muted")], False
+                html.Div(id='control-panel', children=[html.P('Control Functions WIP'], className="card-body"),
+                html.Div(id='control-panel-footer', children=["Control Authorized (" + auth_reason + ")"], className="card-footer text-muted")], False
 
     return [], True
 
