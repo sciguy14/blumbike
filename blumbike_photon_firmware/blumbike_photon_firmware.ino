@@ -3,6 +3,9 @@
 // www.jeremyblum.com
 // This code is licensed under MIT license (see LICENSE.md for details)
 
+// Includes
+#include "math.h"
+
 // Define compiler replacements for Stepper motor direction
 #define HIGHER_RESISTANCE LOW
 #define LOWER_RESISTANCE HIGH
@@ -26,7 +29,7 @@ const unsigned int BPM_INTERRUPTED_THRESHOLD                    = 2000; // If mo
 const unsigned int SESSION_STARTED_SEQUENTIAL_NON_ZERO_READINGS = 2;    // A new session is triggered when this many non-zero RPM readings are found in a row
 const unsigned int SESSION_ENDED_SEQUENTIAL_ZERO_READINGS       = 6;    // A session is ended when this many zero RPM readings are found in a row
 const double RPM_MOVEMENT_THRESHOLD                             = 1.0;  // To address floating point errors, set this value as the movement threshold. Anything below this is effectively "zero" movement
-const double ZERO_RESISTANCE_TURNS                              = 2.75;  // The number of full output shaft turns the stepper motor must do to achieve the minimum resistance setting (just barely touching the wheel)
+const double ZERO_RESISTANCE_TURNS                              = 2.75; // The number of full output shaft turns the stepper motor must do to achieve the minimum resistance setting (just barely touching the wheel)
 const double ROTATIONS_PER_RESISTANCE_STEP                      = 0.25; // Every 1/4th turn of the stepper motor output shaft is equal to one "resistance step"
 const unsigned int DEFAULT_RESISTANCE                           = 1;    // This is the default starting session resistance
 const unsigned int MAX_RESISTANCE                               = 8;    // This is the maximum resistance setting
@@ -159,7 +162,7 @@ void loop() {
     // Constuct a message with the info we care about and send it up to the cloud if we are currently in an active session
     if (in_session) {
         digitalWrite(ONBOARD_LED_PIN, HIGH);
-        String msg = "{\"t\": " + String(timestamp_seconds) + ", \"event\": \"new_data\", \"bike_mph\": " + String(bike_mph) + ", \"heart_bpm\": " + String(heart_bpm) + "}";
+        String msg = "{\"t\": " + String(timestamp_seconds) + ", \"event\": \"new_data\", \"bike_mph\": " + String(bike_mph) + ", \"resistance\": " + String(resistance) + ", \"heart_bpm\": " + String(heart_bpm) + "}";
         Particle.publish("bike_data", msg, PRIVATE | WITH_ACK);
     }
 
@@ -272,7 +275,7 @@ void move(bool dir, double rotations)
     digitalWrite(STEPPER_DIR, dir);
     digitalWrite(STEPPER_ENN, LOW);
 
-    double steps = rotations * STEPS_PER_REV;
+    double steps = fabs(rotations) * STEPS_PER_REV;
     double i = 0.0;
     while (i < steps)
     {

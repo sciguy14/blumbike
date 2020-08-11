@@ -146,6 +146,7 @@ def rest_update():
         # Push the data into a running list in redis
         r.lpush('timestamp', latest_data['t'])
         r.lpush('bike_mph', latest_data['bike_mph'])
+        r.lpush('resistance', latest_data['resistance'])
         r.lpush('heart_bpm', latest_data['heart_bpm'])
 
         # Keep the list trimmed (disabled. Shouldn't be necessary to trim the list since we end sessions when the bike stops).
@@ -198,6 +199,7 @@ def update_metrics(n):
         start_datetime = datetime.datetime.fromtimestamp(int(r.get('session_start')))
         end_datetime = datetime.datetime.fromtimestamp(int(r.get('session_end')))
         speed_readings = [float(i) for i in r.lrange('bike_mph', 0, -1)]
+        resistance_readings = [int(i) for i in r.lrange('resistance', 0, -1)]
         heart_readings = [float(i) for i in r.lrange('heart_bpm', 0, -1)]
         if len(speed_readings) > 0 and len(heart_readings) > 0:
             return [
@@ -205,6 +207,9 @@ def update_metrics(n):
                 html.Br(),
                 html.P('Session Average Bike Speed: {0:0.2f} MPH'.format(sum(speed_readings)/len(speed_readings)), className='card-text'),
                 html.P('Session Max Bike Speed: {0:0.2f} MPH'.format(max(speed_readings)), className='card-text'),
+                html.Br(),
+                html.P('Session Average Resistance: {0:0.2f}'.format(sum(resistance_readings)/len(resistance_readings)), className='card-text'),
+                html.P('Session Max Resistance: {:d}'.format(max(resistance_readings)), className='card-text'),
                 html.Br(),
                 html.P('Session Average Heart Rate: {0:0.2f} BPM'.format(sum(heart_readings)/len(heart_readings)), className='card-text'),
                 html.P('Session Max Heart Rate: {0:0.2f} BPM'.format(max(heart_readings)), className='card-text')
@@ -214,6 +219,7 @@ def update_metrics(n):
         return [
             html.H5('Current session started: {}'.format(date.duration(start_datetime)), className='card-title'),
             html.P('Current Bike Speed: {0:0.2f} MPH'.format(float(r.lindex('bike_mph', 0))), className='card-text'),
+            html.P('Current Resistance: {:d}'.format(int(r.lindex('resistance', 0))), className='card-text'),
             html.P('Current Heart Rate: {0:0.2f} BPM'.format(float(r.lindex('heart_bpm', 0))), className='card-text'),
         ], 'Last Update: {}'.format(datetime.datetime.fromtimestamp(int(r.lindex('timestamp', 0))).strftime('%c'))
     return [html.P('Waiting to receive data from bike...', className='card-text', style={'fontStyle': 'italic'})], [""]
@@ -224,7 +230,7 @@ def update_metrics(n):
               [Input('interval-component', 'n_intervals')])
 def update_graph_live(n):
     # Create the graph with subplots
-    fig = make_subplots(rows=2, cols=1, vertical_spacing=0.3, subplot_titles=("Bike Speed", "Heart Rate"))
+    fig = make_subplots(rows=3, cols=1, vertical_spacing=0.1, subplot_titles=("Bike Speed", "Resistance", "Heart Rate"))
     fig.update_layout(
         xaxis=dict(
             fixedrange=True,
@@ -262,8 +268,27 @@ def update_graph_live(n):
                 color='#839496',
             ),
         ),
+        xaxis3=dict(
+            fixedrange=True,
+            title_font=dict(
+                size=14,
+                color='#839496',
+            ),
+            title_text="Time",
+            zeroline=False,
+            showline=False,
+            showgrid=True,
+            showticklabels=True,
+            gridcolor='#839496',
+            ticks='outside',
+            tickfont=dict(
+                size=12,
+                color='#839496',
+            ),
+        ),
         yaxis=dict(
             fixedrange=True,
+            range=[0, 30],
             title_font=dict(
                 size=14,
                 color='#839496',
@@ -283,6 +308,27 @@ def update_graph_live(n):
         ),
         yaxis2=dict(
             fixedrange=True,
+            range=[0, 8],
+            title_font=dict(
+                size=14,
+                color='#839496',
+            ),
+            title_text="Resistance (1-8)",
+            zeroline=False,
+            rangemode='nonnegative',
+            showline=False,
+            showgrid=True,
+            showticklabels=True,
+            gridcolor='#839496',
+            ticks='outside',
+            tickfont=dict(
+                size=12,
+                color='#839496',
+            ),
+        ),
+        yaxis3=dict(
+            fixedrange=True,
+            range=[0, 200],
             title_font=dict(
                 size=14,
                 color='#839496',
@@ -300,7 +346,7 @@ def update_graph_live(n):
                 color='#839496',
             ),
         ),
-        height=800,
+        height=1100,
         autosize=True,
         margin=dict(
             autoexpand=True,
@@ -321,6 +367,7 @@ def update_graph_live(n):
         data = {
             'timestamp': [datetime.datetime.fromtimestamp(int(x)) for x in r.lrange('timestamp', 0, -1)],
             'speed': [float(i) for i in r.lrange('bike_mph', 0, -1)],
+            'resistance': [int(i) for i in r.lrange('resistance', 0, -1)],
             'heartrate': [float(i) for i in r.lrange('heart_bpm', 0, -1)]
         }
         fig.append_trace({
@@ -335,6 +382,16 @@ def update_graph_live(n):
         }, 1, 1)
         fig.append_trace({
             'x': data['timestamp'],
+            'y': data['resistance'],
+            'text': data['resistance'],
+            'name': 'Resistance',
+            'mode': 'lines+markers',
+            'type': 'scatter',
+            'line': dict(color='#2aa198', width=2),
+            'marker': dict(color='#2aa198', size=6),
+        }, 2, 1)
+        fig.append_trace({
+            'x': data['timestamp'],
             'y': data['heartrate'],
             'text': data['heartrate'],
             'name': 'Heart Rate',
@@ -342,7 +399,7 @@ def update_graph_live(n):
             'type': 'scatter',
             'line': dict(color='#fd7e14', width=2),
             'marker': dict(color='#fd7e14', size=6),
-        }, 2, 1)
+        }, 3, 1)
 
     return fig, {'display': 'none'}, {'visibility': 'visible'}
 
