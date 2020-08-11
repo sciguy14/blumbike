@@ -166,13 +166,18 @@ def rest_update():
 def update_control_sidebar(n):
     # Check if user is authorized and generate sidebar accordingly
     # User is authorized to control bike resistance if their originating Public IP matches that of the Particle Photon that is sending updates
-    # This is obviously not immune from being compromised, since IPs can be spoofed, but it's not a huge deal for this application
+    # This is obviously not immune from being compromised, since IPs can be spoofed and proxied, but it's not a huge deal for this application
     # We also show the control option when running in local dev mode
     auth_reason = False
 
-    session['client_ip'] = request.environ.get('HTTP_X_REAL_IP', request.remote_addr)
+    # See here about getting the client IP that connects to Heroku: https://stackoverflow.com/a/37061471
+    session['client_ip'] = request.remote_addr  # For local development
+    if 'X-Forwarded-For' in request.headers:
+        proxy_data = request.headers['X-Forwarded-For']
+        ip_list = proxy_data.split(',')
+        session['client_ip'] = ip_list[0]  # first address in list is User IP
 
-    if r.exists('bike_ip') and session.get('client_ip') and session['client_ip'] == r.get('bike_ip'):
+    if r.exists('bike_ip') and session['client_ip'] == r.get('bike_ip'):
         auth_reason = "IP Match"
     elif "mode" in os.environ and str(os.environ.get("mode")) == "dev":
         auth_reason = "Dev Mode"
