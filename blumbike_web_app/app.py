@@ -16,12 +16,14 @@ import dash_bootstrap_components as dbc
 import dash_html_components as html
 import dash_core_components as dcc
 from plotly.subplots import make_subplots
-from dash.dependencies import Input, Output
-from flask import request, session
+from dash.dependencies import Input, Output, State, ALL
+from dash.exceptions import PreventUpdate
+from flask import request
 
 
 # Initialize the app
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.SOLAR], update_title=None)
+#app.config['suppress_callback_exceptions'] = True  # We have callbacks linked to control sidebar callback that generate the IDs.
 app.title = "blum.bike"
 server = app.server  # This is the Flask Parent Server that we can use to receive webhooks
 server.config['SECRET_KEY'] = os.environ.get("SECRET_KEY")
@@ -30,7 +32,14 @@ server.config['SECRET_KEY'] = os.environ.get("SECRET_KEY")
 r = redis.from_url(os.environ.get("REDIS_URL"), decode_responses=True)
 
 sidebar =   dbc.Col(children=[
-                        html.Div(id='control-sidebar', hidden=True, children=[], className='card mb-3'),
+                        html.Div(id='control-sidebar', hidden=True, children=[
+                            html.H2("blum.bike Resistance Control", className="card-header"),
+                            html.Div(id='control-panel', children=[
+                                html.Button('Decrease Resistance', id={"index": "down", "type": "resistance"}, className="btn btn-primary", style={"width": "40%", "margin": "0px 5%"}, n_clicks=0, disabled=False),
+                                html.Button('Increase Resistance', id={"index": "up", "type": "resistance"}, className="btn btn-primary", style={"width": "40%", "margin": "0px 5%"}, n_clicks=0, disabled=False),
+                            ], className="card-body bs-component", style={"display": "flex", "width": "100%"}),
+                            html.Div(id='control-panel-footer', children=[], className="card-footer text-muted")
+                        ], className='card mb-3'),
                         html.Div(id='stats-sidebar', children=[
                             html.H2("blum.bike Stats", className="card-header"),
                             html.Div(id='live-update-body', className="card-body"),
@@ -84,7 +93,7 @@ footer = html.Footer(
             className="footer"
         )
 
-app.layout = dbc.Container([main, footer], style={'padding': '15px'}, fluid=True)
+app.layout = dbc.Container([dcc.Store(id='mem', storage_type='memory'), main, footer], style={'padding': '15px'}, fluid=True)
 
 
 # A decorator function to require an api key for pushing data to this application
@@ -162,33 +171,57 @@ def rest_update():
         return {"reply": "event '{}' not understood".format(latest_data['event'])}, 501
 
 
-@app.callback([Output('control-sidebar', 'children'), Output('control-sidebar', 'hidden')],
-              [Input('interval-component', 'n_intervals')])
-def update_control_sidebar(n):
+# This callback generates the control sidebar
+@app.callback([Output('control-panel-footer', 'children'), Output('control-sidebar', 'hidden'), Output('mem', 'data')],
+              [Input('interval-component', 'n_intervals')],
+              [State('mem', 'data')])
+def update_control_sidebar(n, data):
     # Check if user is authorized and generate sidebar accordingly
     # User is authorized to control bike resistance if their originating Public IP matches that of the Particle Photon that is sending updates
     # This is obviously not immune from being compromised, since IPs can be spoofed and proxied, but it's not a huge deal for this application
     # We also show the control option when running in local dev mode
+
     auth_reason = False
 
     # See here about getting the client IP that connects to Heroku: https://stackoverflow.com/a/37061471
-    session['client_ip'] = request.remote_addr  # For local development
+    client_ip = request.remote_addr  # For local development
     if 'X-Forwarded-For' in request.headers:
         proxy_data = request.headers['X-Forwarded-For']
         ip_list = proxy_data.split(',')
-        session['client_ip'] = ip_list[0]  # first address in list is User IP
+        client_ip = ip_list[0]  # first address in list is User IP
 
-    if r.exists('bike_ip') and session['client_ip'] == r.get('bike_ip'):
+    if r.exists('bike_ip') and client_ip == r.get('bike_ip'):
         auth_reason = "IP Match"
     elif "mode" in os.environ and str(os.environ.get("mode")) == "dev":
         auth_reason = "Dev Mode"
 
     if auth_reason:
-        return [html.H2("blum.bike Resistance Control", className="card-header"),
-                html.Div(id='control-panel', children=[html.P('Control Functions WIP')], className="card-body"),
-                html.Div(id='control-panel-footer', children=["Control Authorized (" + auth_reason + ")"], className="card-footer text-muted")], False
+        if data is not None and 'authed' in data and data['authed']:
+            # Don't update the sidebar again if the user is already authorized.
+            raise PreventUpdate
+        data = data or {'authed': True}
+        return ["Control Authorized (" + auth_reason + ")"], False, data
 
-    return [], True
+    data = data or {'authed': False}
+    return [], True, data
+
+
+# Trigger when a resistance radio button is clicked
+@app.callback([Output({'type': 'resistance', 'index': 'down'}, 'disabled'),
+               Output({'type': 'resistance', 'index': 'up'}, 'disabled')],
+              [Input({'type': 'resistance', 'index': ALL}, 'n_clicks')])
+def change_resistance(n_clicks):
+    changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
+    if 'down' in changed_id:
+        print('Resistance decrease requested in UI.')
+        # TODO: Send Resistance Down Request to Particle
+
+    elif 'up' in changed_id:
+        print('Resistance increase requested in UI.')
+        # TODO: Send Resistance Up Request to Particle
+
+    # TODO: Disable Button when at extents of resistance range
+    return [False, False]
 
 
 @app.callback([Output('live-update-body', 'children'), Output('live-update-footer', 'children')],
