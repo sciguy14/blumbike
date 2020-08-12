@@ -16,14 +16,12 @@ import dash_bootstrap_components as dbc
 import dash_html_components as html
 import dash_core_components as dcc
 from plotly.subplots import make_subplots
-from dash.dependencies import Input, Output, State, ALL
-from dash.exceptions import PreventUpdate
+from dash.dependencies import Input, Output, ALL
 from flask import request
 
 
 # Initialize the app
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.SOLAR], update_title=None)
-#app.config['suppress_callback_exceptions'] = True  # We have callbacks linked to control sidebar callback that generate the IDs.
 app.title = "blum.bike"
 server = app.server  # This is the Flask Parent Server that we can use to receive webhooks
 server.config['SECRET_KEY'] = os.environ.get("SECRET_KEY")
@@ -93,7 +91,7 @@ footer = html.Footer(
             className="footer"
         )
 
-app.layout = dbc.Container([dcc.Store(id='mem', storage_type='memory'), main, footer], style={'padding': '15px'}, fluid=True)
+app.layout = dbc.Container([main, footer], style={'padding': '15px'}, fluid=True)
 
 
 # A decorator function to require an api key for pushing data to this application
@@ -172,10 +170,9 @@ def rest_update():
 
 
 # This callback generates the control sidebar
-@app.callback([Output('control-panel-footer', 'children'), Output('control-sidebar', 'hidden'), Output('mem', 'data')],
-              [Input('interval-component', 'n_intervals')],
-              [State('mem', 'data')])
-def update_control_sidebar(n, data):
+@app.callback([Output('control-panel-footer', 'children'), Output('control-sidebar', 'hidden')],
+              [Input('interval-component', 'n_intervals')])
+def update_control_sidebar(n):
     # Check if user is authorized and generate sidebar accordingly
     # User is authorized to control bike resistance if their originating Public IP matches that of the Particle Photon that is sending updates
     # This is obviously not immune from being compromised, since IPs can be spoofed and proxied, but it's not a huge deal for this application
@@ -196,14 +193,9 @@ def update_control_sidebar(n, data):
         auth_reason = "Dev Mode"
 
     if auth_reason:
-        if data is not None and 'authed' in data and data['authed']:
-            # Don't update the sidebar again if the user is already authorized.
-            raise PreventUpdate
-        data = data or {'authed': True}
-        return ["Control Authorized (" + auth_reason + ")"], False, data
+        return ["Control Authorized (" + auth_reason + ")"], False
 
-    data = data or {'authed': False}
-    return [], True, data
+    return [], True
 
 
 # Trigger when a resistance radio button is clicked
