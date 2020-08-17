@@ -31,8 +31,8 @@ const unsigned int SESSION_ENDED_SEQUENTIAL_ZERO_READINGS       = 6;    // A ses
 const double RPM_MOVEMENT_THRESHOLD                             = 1.0;  // To address floating point errors, set this value as the movement threshold. Anything below this is effectively "zero" movement
 const double ZERO_RESISTANCE_TURNS                              = 2.75; // The number of full output shaft turns the stepper motor must do to achieve the minimum resistance setting (just barely touching the wheel)
 const double ROTATIONS_PER_RESISTANCE_STEP                      = 0.25; // Every 1/4th turn of the stepper motor output shaft is equal to one "resistance step"
-const unsigned int DEFAULT_RESISTANCE                           = 1;    // This is the default starting session resistance
-const unsigned int MAX_RESISTANCE                               = 8;    // This is the maximum resistance setting
+const unsigned int DEFAULT_RESISTANCE                           = 3;    // This is the default starting session resistance
+const unsigned int MAX_RESISTANCE                               = 10;   // This is the maximum resistance setting
 const unsigned int MIN_RESISTANCE                               = 1;    // This is the minimum resistance setting
 
 // Define Math Constants

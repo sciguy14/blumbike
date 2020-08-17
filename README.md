@@ -57,20 +57,24 @@ This section is still a work in progress as I am still developing this project.
         "json": {
             "event": "{{{PARTICLE_EVENT_NAME}}}",
             "data": "{{{PARTICLE_EVENT_VALUE}}}",
-            "apikey": "<YOUR_GENERATED_API_KEY>"
+            "apikey": "<YOUR_RANDOMLY_GENERATED_API_KEY>"
         }
     }
     ```  
-    The API key can be whatever you want. You will just need to use the same key when you setup the heroku environment variables.
-6. Create a Heroku Account, and spin up a free-tier dyno.
-7. Choose to "Deploy from GitHub" and connect it to your GitHub account. Point it at the repo that you forked to your account.
-8. On the "Settings" page for the dyno, add the following "Config Vars":  
-    `apikey` = `<YOUR_GENERATED_API_KEY>` - this is the same API key you configured in the JSON webhook.  
+    The API key can be whatever you want. You will just need to use the same key when you setup the heroku environment variables. We use this in the webapp to ensure that we only process incoming data with this secret API key attached.
+6. Now, you need to create an access token associated with your particle.io account that can be used to sent authenicated commands to your particle photon. Install the [Particle Cli](https://docs.particle.io/tutorials/developer-tools/cli/)
+7. Once the cli is installed launch your terminal and run `particle setup` to login, and then run `particle token create --never-expires`. This will add a token to your account that can be used the authenticate the app. The token will be printed to the console. Copy it somewhere for use in later steps.
+8. Create a Heroku Account, and spin up a free-tier dyno.
+9. Choose to "Deploy from GitHub" and connect it to your GitHub account. Point it at the repo that you forked to your account.
+10. On the "Settings" page for the dyno, add the following "Config Vars":  
+    `apikey` = `<YOUR_RANDOMLY_GENERATED_API_KEY>` - this is the same API key you configured in the JSON webhook above.  
     `PROJECT_PATH` = `blumbike_web_app` - this will make the Heroku automatic GitHub deployment look in the right subfolder of this repo for the application ([more info about this](https://stackoverflow.com/a/53221996)).  
-    `SECRET_KEY` = `<ANY_RANDOM_KEY_YOU WANT>` - this is used for session management in the app.
-9. Add a buildpack that will ensure the right subdirectory is used for automatic deployment. Add https://github.com/timanovsky/subdir-heroku-buildpack.git to the buildpack list and drag it to the top of the list (above python).
-10. On the "Resources" page for your Dyno add a Heroku Redis instance. This should automatically add a "Config Var" with your `REDIS_URL`. This app will use this redis store to hold your data.
-11. On the "Deploy" page, choose to deploy your master branch. Future deploys will happen automatically each time you push local changes to your upstream master branch.
+    `SECRET_KEY` = `<ANY_RANDOM_KEY_YOU WANT>` - this is used for session management in the app. It is sepeerate from your api key and your access token.  
+    `PARTICLE_TOKEN` = `<THE_PARTICLE_TOKEN_YOU_GENERATED_IN_THE_PARTICLE_CLI>` - this is the access token you generated above. The particle cloud will only approve the apps control request if this matches an allowed token.  
+    `PARTICLE_ID` = <`THE_UNIQUE_ID_FOR_YOUR_PARTICLE`> - get this from the particle web console. It will match this format: `0123456789abcdef01234567` (24 hex digits)
+11. Add a buildpack that will ensure the right subdirectory is used for automatic deployment. Add https://github.com/timanovsky/subdir-heroku-buildpack.git to the buildpack list and drag it to the top of the list (above python).
+12. On the "Resources" page for your Dyno add a Heroku Redis instance. This should automatically add a "Config Var" with your `REDIS_URL`. This app will use this redis store to hold your data.
+13. On the "Deploy" page, choose to deploy your master branch. Future deploys will happen automatically each time you push local changes to your upstream master branch.
 
 ## Doing Local Development
 It's impractical to re-deploy to Heroku for every software change that you want to test. I recommend the following local development environment:  
@@ -82,9 +86,11 @@ Create a new PyCharm project in the `blumbike_web_app` folder. Set up the Virtua
 * `mode` = `dev` - This will configure the server to run on local port 8050, which is what you used to setup ngrok.
 * `apikey` = `<PUT_YOUR_API_KEY_HERE>` - This is the same apikey that you added to the particle webhook JSON message and to heroku.
 * `REDIS_URL` = `<PUT_YOUR_REDIS_URL_HERE>` - You can use the same REDIS URL that is used by Heroku, or you can run a seperate development redis instance on your local machine and point at that.
-* `SECRET_KEY` = `<ANY_RANDOM_KEY_YOU WANT>` - This is the same secret that you entered in heroku.
+* `SECRET_KEY` = `<PUT_YOUR_SECRET_KEY_HERE>` - This is the same secret key that you entered in heroku.
+* `PARTICLE_TOKEN` = `<PUT_YOUR_PARTICLE_TOKEN_HERE>` - This is the same particle token, retrieved from the particle cli, that you added to the heroku env vars.
+* `PARTICLE_ID` = <`THE_UNIQUE_ID_FOR_YOUR_PARTICLE`> - get this from the particle web console. It will match this format: `0123456789abcdef01234567` (24 hex digits)
   
-Run the PyCharm configuration that you setup, and the ngrok instance should start showing "200 OK" responses. Visit [localhost:8050/](http://localhost:8050/) in your webbrowser to see your local instance of the web app. You can see more details about the webhooks coming into your machine via the ngrok inspection interface at [localhost:4040/inspect/http](http://localhost:8050/).
+Run the PyCharm configuration that you setup, and the ngrok instance should start showing "200 OK" responses. Visit [localhost:8050/](http://localhost:8050/) in your webbrowser to see your local instance of the web app. You can see more details about the webhooks coming into your machine via the ngrok inspection interface at [localhost:4040/inspect/http](localhost:4040/inspect/http).
 
 ## Other Useful References
 The following are some use websites that I referenced while working on this project. You might find them useful as well:

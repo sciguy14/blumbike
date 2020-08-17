@@ -4,7 +4,9 @@
 
 # This code is licensed under MIT license (see LICENSE.md for details)
 
+# Import what we need
 import os
+import re
 import redis
 import dash
 import time
@@ -15,10 +17,15 @@ import json
 import dash_bootstrap_components as dbc
 import dash_html_components as html
 import dash_core_components as dcc
+from dash.exceptions import PreventUpdate
 from plotly.subplots import make_subplots
 from dash.dependencies import Input, Output, ALL
 from flask import request
+import requests
 
+# These constants should match what is configured in the Photon firmware
+MIN_RESISTANCE = 1
+MAX_RESISTANCE = 10
 
 # Initialize the app
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.SOLAR], update_title=None)
@@ -29,13 +36,15 @@ server.config['SECRET_KEY'] = os.environ.get("SECRET_KEY")
 # Connect to Redis for persistent storage of session data
 r = redis.from_url(os.environ.get("REDIS_URL"), decode_responses=True)
 
+# Define the dashboard layout
 sidebar =   dbc.Col(children=[
                         html.Div(id='control-sidebar', hidden=True, children=[
                             html.H2("blum.bike Resistance Control", className="card-header"),
                             html.Div(id='control-panel', children=[
-                                html.Button('Decrease Resistance', id={"index": "down", "type": "resistance"}, className="btn btn-primary", style={"width": "40%", "margin": "0px 5%"}, n_clicks=0, disabled=False),
-                                html.Button('Increase Resistance', id={"index": "up", "type": "resistance"}, className="btn btn-primary", style={"width": "40%", "margin": "0px 5%"}, n_clicks=0, disabled=False),
+                                dbc.Button('Decrease Resistance', id={"index": "down", "type": "resistance"}, color="info", style={"width": "40%", "margin": "0px 5%"}, n_clicks=0, disabled=False),
+                                dbc.Button('Increase Resistance', id={"index": "up", "type": "resistance"}, color="info", style={"width": "40%", "margin": "0px 5%"}, n_clicks=0, disabled=False),
                             ], className="card-body bs-component", style={"display": "flex", "width": "100%"}),
+                            dbc.Alert("Command Status Alert", id="resistance-status", is_open=False, duration=3000, style={"width": "80%", "textAlign": "center", "margin": "0px 10% 10px"}),
                             html.Div(id='control-panel-footer', children=[], className="card-footer text-muted")
                         ], className='card mb-3'),
                         html.Div(id='stats-sidebar', children=[
@@ -94,7 +103,7 @@ footer = html.Footer(
 app.layout = dbc.Container([main, footer], style={'padding': '15px'}, fluid=True)
 
 
-# A decorator function to require an api key for pushing data to this application
+# A decorator function to require an api key for pushing data to this application from the Particle webhook
 # https://coderwall.com/p/4qickw/require-an-api-key-for-a-route-in-flask-using-only-a-decorator
 def require_apikey(view_function):
     @wraps(view_function)
@@ -169,25 +178,19 @@ def rest_update():
         return {"reply": "event '{}' not understood".format(latest_data['event'])}, 501
 
 
-# This callback generates the control sidebar
+# This callback generates the control sidebar by checking if user is authorized and unhiding the control buttons.
+# The user is authorized to control bike resistance if their originating Public IP matches that of the Particle Photon that is sending updates.
+# When the bike starts a session, the Photon gets its own public IP address and transmits it with the session info. We compare against that value.
+# This is obviously not immune from being compromised, since IPs can be spoofed and proxied.
+# The div can also just easily be unhidden using the browser inspection tools, but we refuse to send the actual control command unless the IPs match,
+# and a potential attacker should have no way of knowing what IP they need to spoof.
+# We also show the control sidebar panel when running in local dev mode.
 @app.callback([Output('control-panel-footer', 'children'), Output('control-sidebar', 'hidden')],
               [Input('interval-component', 'n_intervals')])
 def update_control_sidebar(n):
-    # Check if user is authorized and generate sidebar accordingly
-    # User is authorized to control bike resistance if their originating Public IP matches that of the Particle Photon that is sending updates
-    # This is obviously not immune from being compromised, since IPs can be spoofed and proxied, but it's not a huge deal for this application
-    # We also show the control option when running in local dev mode
-
     auth_reason = False
 
-    # See here about getting the client IP that connects to Heroku: https://stackoverflow.com/a/37061471
-    client_ip = request.remote_addr  # For local development
-    if 'X-Forwarded-For' in request.headers:
-        proxy_data = request.headers['X-Forwarded-For']
-        ip_list = proxy_data.split(',')
-        client_ip = ip_list[0]  # first address in list is User IP
-
-    if r.exists('bike_ip') and client_ip == r.get('bike_ip'):
+    if ip_matches():
         auth_reason = "IP Match"
     elif "mode" in os.environ and str(os.environ.get("mode")) == "dev":
         auth_reason = "Dev Mode"
@@ -198,24 +201,111 @@ def update_control_sidebar(n):
     return [], True
 
 
-# Trigger when a resistance radio button is clicked
+# This helper function returns true if the client IP matches the IP of the photon that is stored in Redis
+def ip_matches():
+    # See here about getting the client IP that connects to Heroku: https://stackoverflow.com/a/37061471
+    client_ip = request.remote_addr  # For local development
+    if 'X-Forwarded-For' in request.headers:
+        proxy_data = request.headers['X-Forwarded-For']
+        ip_list = proxy_data.split(',')
+        client_ip = ip_list[0]  # first address in list is User IP
+
+    if r.exists('bike_ip') and client_ip == r.get('bike_ip'):
+        return True
+
+    return False
+
+
+# This callback triggers when a resistance control button is clicked
 @app.callback([Output({'type': 'resistance', 'index': 'down'}, 'disabled'),
-               Output({'type': 'resistance', 'index': 'up'}, 'disabled')],
+               Output({'type': 'resistance', 'index': 'up'}, 'disabled'),
+               Output('resistance-status', 'children'),
+               Output('resistance-status', 'is_open'),
+               Output('resistance-status', 'color')],
               [Input({'type': 'resistance', 'index': ALL}, 'n_clicks')])
 def change_resistance(n_clicks):
     changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
-    if 'down' in changed_id:
-        print('Resistance decrease requested in UI.')
-        # TODO: Send Resistance Down Request to Particle
+    try:
+        index =  json.loads(re.search(r'(\{.*?\})', changed_id).group(1))['index']
+    except AttributeError as e:
+        raise PreventUpdate
 
-    elif 'up' in changed_id:
-        print('Resistance increase requested in UI.')
-        # TODO: Send Resistance Up Request to Particle
+    if index == 'down' or index == 'up':
+        # As described in the update_control_sidebar() comments, we check the IP again and only send the command if there is a match.
+        prefix = ""
+        if not ip_matches():
+            if "mode" in os.environ and str(os.environ.get("mode")) == "dev":
+                prefix = "[Dev Override] "
+            else:
+                return False, False, "Command blocked due to IP mismatch.", True, 'warning'
 
-    # TODO: Disable Button when at extents of resistance range
-    return [False, False]
+        success, msg, data = particle_cloud_function('resistance_' + index)
+        if success:
+            res = int(data["return_value"])
+            alert_text = prefix + "Resistance set to " + str(res)
+            if res == MIN_RESISTANCE:
+                return True, False, alert_text + " (Min)", True, 'success'
+            elif res == MAX_RESISTANCE:
+                return False, True, alert_text + " (Max)", True, 'success'
+            else:
+                return False, False, alert_text, True, 'success'
+        else:
+            alert_text = prefix + msg
+            return False, False, alert_text, True, "primary"
+
+    raise PreventUpdate
 
 
+# This helper function sends a request to the particle cloud using the auth token and photon ID that should be stored in env vars.
+# The command input is the name of the photon function to execute
+# Returns a tuple with a boolean indicating success/failure, a status message, and the reply contents
+def particle_cloud_function(cmd):
+    address = 'https://api.particle.io/v1/devices/{}/{}'.format(os.environ.get("PARTICLE_ID"), cmd)
+    data = {'access_token': os.environ.get("PARTICLE_TOKEN"), 'arg': ''}
+
+    success = False
+    msg = "An unknown failure occurred."
+
+    req = requests.post(address, data=data)
+    print(req.content)
+    returned_data = req.json()
+    if req.status_code == 200:
+        success = True
+        msg = "Command sent successfully."
+        print('OK - Your Request was successfully delivered to the device and executed.')
+    elif req.status_code == 400:
+        success = False
+        msg = "Command Failed!"
+        print('Bad Request - Your request is not understood by the device, or the requested subresource has not been exposed.')
+    elif req.status_code == 401:
+        success = False
+        msg = "Control not Authorized!"
+        print('Unauthorized - Your access token is not valid.')
+    elif req.status_code == 403:
+        success = False
+        msg = "Control not Authorized for this Device!"
+        print('Forbidden - Your access token is not authorized to interface with this device.')
+    elif req.status_code == 404:
+        success = False
+        msg = "Device not available!"
+        print('Not Found - The device you requested is not currently connected to the Particle cloud.')
+    elif req.status_code == 408:
+        success = False
+        msg = "Command timed out!"
+        print('Timed Out - The Particle cloud experienced a significant delay when trying to reach the device.')
+    elif req.status_code == 429:
+        success = False
+        msg = "Command speed limit exceeded!"
+        print('Too Many Requests - You are either making requests too often or too many at the same time.')
+    elif req.status_code == 500:
+        success = False
+        msg = "Server error encountered!"
+        print('Server error. Something is wrong with the Particle Cloud.')
+
+    return success, msg, returned_data
+
+
+# This callback triggers once per second to update the text into the sidebar using the latest data in redis
 @app.callback([Output('live-update-body', 'children'), Output('live-update-footer', 'children')],
               [Input('interval-component', 'n_intervals')])
 def update_metrics(n):
@@ -250,7 +340,7 @@ def update_metrics(n):
     return [html.P('Waiting to receive data from bike...', className='card-text', style={'fontStyle': 'italic'})], [""]
 
 
-# Multiple components can update every time interval gets fired.
+# This callback fires once persection to update the live graphs with the latest data from redis.
 @app.callback([Output('live-update-graph', 'figure'), Output('graph-spinner', 'style'), Output('live-graph-div', 'style')],
               [Input('interval-component', 'n_intervals')])
 def update_graph_live(n):
@@ -313,7 +403,7 @@ def update_graph_live(n):
         ),
         yaxis=dict(
             fixedrange=True,
-            range=[0, 30],
+            range=[0, 35],
             title_font=dict(
                 size=14,
                 color='#839496',
@@ -333,12 +423,12 @@ def update_graph_live(n):
         ),
         yaxis2=dict(
             fixedrange=True,
-            range=[0, 8],
+            range=[0, MAX_RESISTANCE],
             title_font=dict(
                 size=14,
                 color='#839496',
             ),
-            title_text="Resistance (1-8)",
+            title_text="Resistance (" + str(MIN_RESISTANCE) + "-" + str(MAX_RESISTANCE) + ")",
             zeroline=False,
             rangemode='nonnegative',
             showline=False,
