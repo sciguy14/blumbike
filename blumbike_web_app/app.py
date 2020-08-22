@@ -41,8 +41,8 @@ sidebar =   dbc.Col(children=[
                         html.Div(id='control-sidebar', hidden=True, children=[
                             html.H2("blum.bike Resistance Control", className="card-header"),
                             html.Div(id='control-panel', children=[
-                                dbc.Button('Decrease Resistance', id={"index": "down", "type": "resistance"}, color="info", style={"width": "40%", "margin": "0px 5%"}, n_clicks=0, disabled=False),
-                                dbc.Button('Increase Resistance', id={"index": "up", "type": "resistance"}, color="info", style={"width": "40%", "margin": "0px 5%"}, n_clicks=0, disabled=False),
+                                dbc.Button('Decrease Resistance', id={"index": "down", "type": "resistance"}, color="info", style={"width": "40%", "margin": "0px 5%"}, n_clicks=0, disabled=False, className="shadow-none"),
+                                dbc.Button('Increase Resistance', id={"index": "up", "type": "resistance"}, color="info", style={"width": "40%", "margin": "0px 5%"}, n_clicks=0, disabled=False, className="shadow-none"),
                             ], className="card-body bs-component", style={"display": "flex", "width": "100%"}),
                             dbc.Alert("Command Status Alert", id="resistance-status", is_open=False, duration=3000, style={"width": "80%", "textAlign": "center", "margin": "0px 10% 10px"}),
                             html.Div(id='control-panel-footer', children=[], className="card-footer text-muted")
@@ -53,10 +53,10 @@ sidebar =   dbc.Col(children=[
                             html.Div(id='live-update-footer', className="card-footer text-muted")
                         ], className='card mb-3')
                     ],
-                    className='col-md-12 col-lg-4 sidebar'
+                    className='col-12 col-sm-12 col-md-12 col-lg-5 col-xl-4 sidebar'
                     )
 
-content =   dbc.Col(className='col-md-12 col-lg-8 col-lg-offset-4 main',
+content =   dbc.Col(className='col-12 col-sm-12 col-md-12 col-lg-7 col-lg-offset-5 col-xl-8 col-xl-offset-4 main',
                     children=[
                         html.Div(id='graph-spinner', style={'textAlign': 'center'},
                                  children=[
@@ -267,7 +267,6 @@ def particle_cloud_function(cmd):
     msg = "An unknown failure occurred."
 
     req = requests.post(address, data=data)
-    print(req.content)
     returned_data = req.json()
     if req.status_code == 200:
         success = True
@@ -275,7 +274,7 @@ def particle_cloud_function(cmd):
         print('OK - Your Request was successfully delivered to the device and executed.')
     elif req.status_code == 400:
         success = False
-        msg = "Command Failed!"
+        msg = "Command Failed! Is the bike on?"
         print('Bad Request - Your request is not understood by the device, or the requested subresource has not been exposed.')
     elif req.status_code == 401:
         success = False
@@ -350,7 +349,7 @@ def update_graph_live(n):
         xaxis=dict(
             fixedrange=True,
             title_font=dict(
-                size=14,
+                size=16,
                 color='#839496',
             ),
             title_text="Time",
@@ -361,14 +360,14 @@ def update_graph_live(n):
             gridcolor='#839496',
             ticks='outside',
             tickfont=dict(
-                size=12,
+                size=14,
                 color='#839496',
             ),
         ),
         xaxis2=dict(
             fixedrange=True,
             title_font=dict(
-                size=14,
+                size=16,
                 color='#839496',
             ),
             title_text="Time",
@@ -379,14 +378,14 @@ def update_graph_live(n):
             gridcolor='#839496',
             ticks='outside',
             tickfont=dict(
-                size=12,
+                size=14,
                 color='#839496',
             ),
         ),
         xaxis3=dict(
             fixedrange=True,
             title_font=dict(
-                size=14,
+                size=16,
                 color='#839496',
             ),
             title_text="Time",
@@ -397,7 +396,7 @@ def update_graph_live(n):
             gridcolor='#839496',
             ticks='outside',
             tickfont=dict(
-                size=12,
+                size=14,
                 color='#839496',
             ),
         ),
@@ -405,7 +404,7 @@ def update_graph_live(n):
             fixedrange=True,
             range=[0, 35],
             title_font=dict(
-                size=14,
+                size=16,
                 color='#839496',
             ),
             title_text="Speed (mph)",
@@ -417,7 +416,7 @@ def update_graph_live(n):
             gridcolor='#839496',
             ticks='outside',
             tickfont=dict(
-                size=12,
+                size=14,
                 color='#839496',
             ),
         ),
@@ -425,7 +424,7 @@ def update_graph_live(n):
             fixedrange=True,
             range=[0, MAX_RESISTANCE],
             title_font=dict(
-                size=14,
+                size=16,
                 color='#839496',
             ),
             title_text="Resistance (" + str(MIN_RESISTANCE) + "-" + str(MAX_RESISTANCE) + ")",
@@ -437,7 +436,7 @@ def update_graph_live(n):
             gridcolor='#839496',
             ticks='outside',
             tickfont=dict(
-                size=12,
+                size=14,
                 color='#839496',
             ),
         ),
@@ -445,7 +444,7 @@ def update_graph_live(n):
             fixedrange=True,
             range=[0, 200],
             title_font=dict(
-                size=14,
+                size=16,
                 color='#839496',
             ),
             title_text="Heart Rate (bpm)",
@@ -457,7 +456,7 @@ def update_graph_live(n):
             gridcolor='#839496',
             ticks='outside',
             tickfont=dict(
-                size=12,
+                size=14,
                 color='#839496',
             ),
         ),
@@ -476,7 +475,7 @@ def update_graph_live(n):
     )
 
     for i in fig['layout']['annotations']:
-        i['font'] = dict(size=18, color='#839496')
+        i['font'] = dict(size=20, color='#839496')
 
     if r.exists('timestamp'):
         data = {
@@ -521,6 +520,6 @@ def update_graph_live(n):
 
 if __name__ == '__main__':
     if "mode" in os.environ and str(os.environ.get("mode")) == "dev":
-        app.run_server(debug=True, port=8050)
+        app.run_server(host='127.0.0.1', debug=True, port=8050)
     else:
         app.run_server(host='0.0.0.0')

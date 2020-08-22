@@ -2,6 +2,7 @@ html {
   position: relative;
   min-height: 100%;
   width: 100%;
+  font-size: 20px;
 }
 body {
   /* Margin bottom by footer height */
@@ -15,3 +16,18 @@ body {
   /* Set the fixed height of the footer here */
   height: 100px;
 }
+
+@media all and (max-width: 992px) {
+    /* Increase font size on small screens (bootstrap medium pixel size) */
+    html{font-size: 30px;}
+}
+
+/* Prevent buttons from retaining focus style after touch */
+.btn-info:focus {
+    outline: none !important;
+    outline-style: none !important;
+    box-shadow: none !important;
+    -webkit-box-shadow: none !important;
+    background: #268BD2 linear-gradient(180deg, #479cd9, #268BD2) repeat-x;
+}
+
