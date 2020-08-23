@@ -12,3 +12,6 @@ venv/
 
 # Exclude Sketchup Backup Files
 *.skb
+
+#Exclude Altium  Design files
+blum.bike_altium/
