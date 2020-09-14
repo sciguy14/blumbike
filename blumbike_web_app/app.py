@@ -68,7 +68,7 @@ content =   dbc.Col(className='col-12 col-sm-12 col-md-12 col-lg-7 col-lg-offset
                                  children=[
                                     dcc.Graph(id='live-update-graph', config={'displayModeBar': False})
                                  ]),
-                        dcc.Interval(id='interval-component', interval=1000, n_intervals=0)
+                        dcc.Interval(id='interval-component', interval=2000, n_intervals=0)
                     ])
 
 main = dbc.Row(children=[sidebar, content], id='main-content')
