@@ -1,14 +1,16 @@
 # BLUM.BIKE
 This repo contains the code and documentation related to my blum.bike IOT bike trainer project. My instance of this project is publically accessible at [blum.bike](https://blum.bike), but you can use this code to deploy your own implementation.
   
-This project is still a WORK-IN-PROGRESS!
-  
 Copyright 2020 [Jeremy Blum](https://www.jeremyblum.com), [Blum Idea Labs, LLC.](https://www.blumidealabs.com)  
 This project is licensed under the MIT license (see LICENSE.md for details).
 
 ## Current Features
-* Turn on the bike hardware to automatically start a session that is shown live in the web app.
-* Web app shows a historical representation of heart rate and bike speed for the current training session, as well as the current real-time value (updated once per second).
+* Workout session starts automatically when you start biking.
+* Live speed, heatrate, and resistance are shown on the webapp during a session.
+* Summary of the last ride is shown when not in a session.
+* If being accessed the same public-facing IP that is broadcasting the data, controls will be shown allowing you to control the resistance during a session.
+* Resistance can be dynamically controlled using a stepper motor coupled into the dyno-adjustment leadscrew.
+* Heartrate is captured using a Polar heartrate chest strap.
 
 ## Repo Organization
 * [blumbike_hardware](blumbike_hardware/): This folder includes the schematics, datasheets, and mechanical design files necessary for building the bike hardware.
