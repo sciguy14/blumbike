@@ -68,7 +68,8 @@ content =   dbc.Col(className='col-12 col-sm-12 col-md-12 col-lg-7 col-lg-offset
                                  children=[
                                     dcc.Graph(id='live-update-graph', config={'displayModeBar': False})
                                  ]),
-                        dcc.Interval(id='interval-component', interval=2000, n_intervals=0)
+                        dcc.Interval(id='interval-component-fast', interval=1000, n_intervals=0),
+                        dcc.Interval(id='interval-component-slow', interval=5000, n_intervals=0)
                     ])
 
 main = dbc.Row(children=[sidebar, content], id='main-content')
@@ -186,7 +187,7 @@ def rest_update():
 # and a potential attacker should have no way of knowing what IP they need to spoof.
 # We also show the control sidebar panel when running in local dev mode.
 @app.callback([Output('control-panel-footer', 'children'), Output('control-sidebar', 'hidden')],
-              [Input('interval-component', 'n_intervals')])
+              [Input('interval-component-fast', 'n_intervals')])
 def update_control_sidebar(n):
     auth_reason = False
 
@@ -304,9 +305,9 @@ def particle_cloud_function(cmd):
     return success, msg, returned_data
 
 
-# This callback triggers once per second to update the text into the sidebar using the latest data in redis
+# This callback triggers on an interval to update the text into the sidebar using the latest data in redis
 @app.callback([Output('live-update-body', 'children'), Output('live-update-footer', 'children')],
-              [Input('interval-component', 'n_intervals')])
+              [Input('interval-component-fast', 'n_intervals')])
 def update_metrics(n):
 
     if r.exists('session_end') and r.exists('timestamp'):
@@ -339,9 +340,9 @@ def update_metrics(n):
     return [html.P('Waiting to receive data from bike...', className='card-text', style={'fontStyle': 'italic'})], [""]
 
 
-# This callback fires once persection to update the live graphs with the latest data from redis.
+# This callback fires on an interval to update the live graphs with the latest data from redis.
 @app.callback([Output('live-update-graph', 'figure'), Output('graph-spinner', 'style'), Output('live-graph-div', 'style')],
-              [Input('interval-component', 'n_intervals')])
+              [Input('interval-component-slow', 'n_intervals')])
 def update_graph_live(n):
     # Create the graph with subplots
     fig = make_subplots(rows=3, cols=1, vertical_spacing=0.1, subplot_titles=("Bike Speed", "Resistance", "Heart Rate"))
